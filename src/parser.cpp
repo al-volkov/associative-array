@@ -1,8 +1,7 @@
-#include <vector>
-#include <unordered_map>
-#include <fstream>
 #include "../include/WSEML.hpp"
 #include "../include/parser.hpp"
+#include <unordered_map>
+#include <fstream>
 
 namespace wseml {
     WSEML parseHelper(const std::string& text, size_t& curPos);
@@ -282,7 +281,7 @@ namespace wseml {
         std::string wsemlString;
         if (wseml.getRawObject() == nullptr)
             return "$";
-        if (wseml.structureTypeInfo() == StructureType::StringType) {
+        if (wseml.structureTypeInfo() == StructureType::String) {
             wsemlString = dynamic_cast<ByteString*>(const_cast<Object*>(wseml.getRawObject()))->get();
             bool isBytes = false;
             for (char c : wsemlString) {

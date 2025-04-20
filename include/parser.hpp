@@ -1,4 +1,5 @@
 #pragma once
+#include "WSEML.hpp"
 
 namespace wseml {
     WSEML parse(const std::string& text);

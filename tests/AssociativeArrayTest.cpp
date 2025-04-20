@@ -39,7 +39,7 @@ namespace wseml {
         for (const auto& block_pairs : block_pairs_list) {
             appendBlock(aa, createBlockFromPairs(block_pairs));
         }
-        if (block_pairs_list.size() == 0 && aa.getAsList() && aa.getAsList()->get().empty()) {
+        if (block_pairs_list.size() == 0 && aa.getInnerList().empty()) {
             appendBlock(aa, createBlock());
         }
         return aa;
@@ -74,13 +74,13 @@ namespace wseml {
     TEST_F(AssociativeArrayTest, CreateEmpty) {
         WSEML aa = createAssociativeArray();
         ASSERT_TRUE(isAssociativeArray(aa));
-        ASSERT_TRUE(aa.getAsList());
-        EXPECT_TRUE(aa.getAsList()->get().empty());
+        ASSERT_TRUE(aa.structureTypeInfo() == StructureType::List);
+        EXPECT_TRUE(aa.getInnerList().empty());
 
         WSEML block = createBlock();
         ASSERT_TRUE(isBlock(block));
-        ASSERT_TRUE(block.getAsList());
-        EXPECT_TRUE(block.getAsList()->get().empty());
+        ASSERT_TRUE(block.structureTypeInfo() == StructureType::List);
+        EXPECT_TRUE(block.getInnerList().empty());
     }
 
     TEST_F(AssociativeArrayTest, CreateKVAssociation) {
@@ -88,10 +88,10 @@ namespace wseml {
         ASSERT_TRUE(isKeyValueAssociation(kv));
         ASSERT_EQ(getKeyFromAssociation(kv), S("key"));
         ASSERT_EQ(getValueFromAssociation(kv), S("value"));
-        ASSERT_TRUE(kv.getAsList());
-        ASSERT_EQ(kv.getAsList()->get().size(), 1);
-        ASSERT_EQ(kv.getAsList()->get().front().getKey(), S("key"));
-        ASSERT_EQ(kv.getAsList()->get().front().getData(), S("value"));
+        ASSERT_TRUE(kv.structureTypeInfo() == StructureType::List);
+        ASSERT_EQ(kv.getInnerList().size(), 1);
+        ASSERT_EQ(kv.getInnerList().front().getKey(), S("key"));
+        ASSERT_EQ(kv.getInnerList().front().getData(), S("value"));
     }
 
     TEST_F(AssociativeArrayTest, AddAndFindInBlock) {
@@ -898,8 +898,7 @@ namespace wseml {
 
         ASSERT_TRUE(isFunctionalAssociation(funcAssoc));
         ASSERT_EQ(funcAssoc.getSemanticType(), FUNC_ASSOC_TYPE);
-        ASSERT_EQ(funcAssoc.structureTypeInfo(), StructureType::ListType);
-        ASSERT_EQ(funcAssoc.getAsList()->get().size(), 2);
+        ASSERT_EQ(funcAssoc.structureTypeInfo(), StructureType::List);
 
         ASSERT_FALSE(isFunctionalAssociation(S("not an assoc")));
         ASSERT_FALSE(isFunctionalAssociation(createBlock()));
@@ -1020,10 +1019,10 @@ namespace wseml {
         WSEML keyList({P("a", "1")}, testType2);
         WSEML actualListResult = findValueInAA(aa, keyList);
 
-        ASSERT_TRUE(actualListResult.structureTypeInfo() == StructureType::ListType);
-        ASSERT_EQ(actualListResult.getAsList()->get().size(), 2);
-        ASSERT_EQ(actualListResult.getAsList()->find(S("a")), S("1"));
-        ASSERT_EQ(actualListResult.getAsList()->back(), WSEML("APPENDED_VALUE"));
+        ASSERT_TRUE(actualListResult.structureTypeInfo() == StructureType::List);
+        ASSERT_EQ(actualListResult.getInnerList().size(), 2);
+        ASSERT_EQ(actualListResult.getList().find(S("a")), S("1"));
+        ASSERT_EQ(actualListResult.getList().back(), WSEML("APPENDED_VALUE"));
 
         WSEML keyCustom("otherkey", testType3);
         ASSERT_EQ(findValueInAA(aa, keyCustom), NULLOBJ);

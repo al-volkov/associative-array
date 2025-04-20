@@ -1,6 +1,9 @@
 /**
  * @file WSEML.hpp
  * @brief File with declarations for main classes.
+ * @details All objects are copied WITHOUT pointer to pairs/lists that contain them, and this values must be set by their new owner.
+ *          Then updateRecursively(...) should be called on root of the copied subtree.
+ *          // TODO: copy objects with a single traversal
  */
 
 #pragma once
@@ -23,7 +26,7 @@ namespace wseml {
     /**
      * @brief Types to distinguish @ref ByteString and @ref List.
      */
-    enum class StructureType { None, StringType, ListType };
+    enum class StructureType { None, String, List };
 
     /**
      * @brief Compares two WSEML objects by value, not by identity.
@@ -48,10 +51,16 @@ namespace wseml {
         WSEML();
 
         /**
-         * @brief Constructs a WSEML object taking ownership of the @p obj.
-         * @param obj Pointer to an Object instance. WSEML takes ownership.
+         * @brief Constructs a new WSEML object taking ownership of the @p list.
+         * @param list Unique pointer to a List instance. WSEML takes ownership.
          */
-        explicit WSEML(Object* obj);
+        WSEML(std::unique_ptr<List> list);
+
+        /**
+         * @brief Constructs a new WSEML object taking ownership of the @p bytes.
+         * @param bytes Unique pointer to a ByteString instance. WSEML takes ownership.
+         */
+        WSEML(std::unique_ptr<ByteString> bytes);
 
         /**
          * @brief Constructs a WSEML object representing a ByteString.
@@ -153,27 +162,85 @@ namespace wseml {
 
         /**
          * @brief Safely get the underlying object as a List.
-         * @return Pointer to the List object, or nullptr if this WSEML is not a List or is empty.
+         * @return Pointer to the List object.
+         * @throws std::runtime_error if underlying object is not a List.
          */
-        List* getAsList();
+        List& getList();
 
         /**
          * @brief Safely get the underlying object as a List.
-         * @return Pointer to the const List object, or nullptr if this WSEML is not a List or is empty.
+         * @return Pointer to the List object.
+         * @throws std::runtime_error if underlying object is not a List.
          */
-        const List* getAsList() const;
+        const List& getList() const;
+
+        /**
+         * @brief Appends a new Pair to the end of the list.
+         * @param listOwner Pointer to the WSEML object that *owns* this List. Needed to set back-pointers correctly.
+         * @param data The data WSEML object (moved).
+         * @param key The key WSEML object (moved, defaults to generated key).
+         * @param keyRole The keyRole WSEML object (moved, defaults to NULLOBJ).
+         * @param dataRole The dataRole WSEML object (moved, defaults to NULLOBJ).
+         * @return The key that was used (either provided or generated).
+         * @note Updates the containing pair pointers of the moved WSEML objects.
+         * @throws std::runtime_error if underlying object is not a List.
+         */
+        WSEML append(WSEML data, WSEML key = NULLOBJ, WSEML keyRole = NULLOBJ, WSEML dataRole = NULLOBJ);
+
+        /**
+         * @brief Appends a new Pair to the start of the list.
+         * @param listOwner Pointer to the WSEML object that *owns* this List. Needed to set back-pointers correctly.
+         * @param data The data WSEML object (moved).
+         * @param key The key WSEML object (moved, defaults to generated key).
+         * @param keyRole The keyRole WSEML object (moved, defaults to NULLOBJ).
+         * @param dataRole The dataRole WSEML object (moved, defaults to NULLOBJ).
+         * @return The key that was used (either provided or generated).
+         * @note Updates the containing pair pointers of the moved WSEML objects.
+         * @throws std::runtime_error if underlying object is not a List.
+         */
+        WSEML appendFront(WSEML data, WSEML key = NULLOBJ, WSEML keyRole = NULLOBJ, WSEML dataRole = NULLOBJ);
+
+        /**
+         * @brief Safely get the pair list from the underlying object.
+         * @return Reference to std::list< @ref Pair>.
+         * @throws std::runtime_error if underlying object is not a List.
+         */
+        std::list<Pair>& getInnerList();
+
+        /**
+         * @brief Safely get the pair list from the underlying object.
+         * @return Reference to std::list< @ref Pair>.
+         * @throws std::runtime_error if underlying object is not a List.
+         */
+        const std::list<Pair>& getInnerList() const;
 
         /**
          * @brief Safely get the underlying object as a ByteString.
-         * @return Pointer to the ByteString object, or nullptr if this WSEML is not a ByteString or is empty.
+         * @return Pointer to the ByteString object.
+         * @throws std::runtime_error if underlying object is not a ByteString.
          */
-        ByteString* getAsByteString();
+        ByteString& getByteString();
 
         /**
          * @brief Safely get the underlying object as a ByteString.
-         * @return Pointer to the const ByteString object, or nullptr if this WSEML is not a ByteString or is empty.
+         * @return Pointer to the ByteString object.
+         * @throws std::runtime_error if underlying object is not a ByteString.
          */
-        const ByteString* getAsByteString() const;
+        const ByteString& getByteString() const;
+
+        /**
+         * @brief Safely get the string from the underlying object.
+         * @return Reference to the std::string.
+         * @throws std::runtime_error if underlying object is not a ByteString.
+         */
+        std::string& getInnerString();
+
+        /**
+         * @brief Safely get the string from the underlying object.
+         * @return Reference to the std::string.
+         * @throws std::runtime_error if underlying object is not a ByteString.
+         */
+        const std::string& getInnerString() const;
 
         /**
          * @brief Returns the raw pointer to the  @ref Object this WSEML points to.
@@ -187,6 +254,12 @@ namespace wseml {
          */
         const Object* getRawObject() const;
 
+        /**
+         * @brief Functions to recursively set correct back pointers in contained objects.
+         * @param p Pointer to the pair that contains this WSEML objects as key, data, key role, or data role.
+         */
+        void updateLinksRecursively(Pair* p);
+
         bool one_step();
 
         friend bool equal(const WSEML& first, const WSEML& second);
@@ -197,8 +270,6 @@ namespace wseml {
 
     private:
         std::unique_ptr<Object> obj_ = nullptr;
-        void updateContainedListPointers();
-        void updatePairPointers(Pair* containingPair);
     };
 
     /**
@@ -266,6 +337,34 @@ namespace wseml {
          */
         virtual StructureType structureTypeInfo() const = 0;
 
+        /**
+         * @brief Get this object as a ByteString.
+         * @return ByteString& reference to the ByteString object.
+         * @throws std::runtime_error if this object is not a ByteString.
+         */
+        virtual ByteString& getByteString() = 0;
+
+        /**
+         * @brief Get this object as a ByteString.
+         * @return ByteString& reference to the ByteString object.
+         * @throws std::runtime_error if this object is not a ByteString.
+         */
+        virtual const ByteString& getByteString() const = 0;
+
+        /**
+         * @brief Get this object as a List.
+         * @return List& reference to the List object.
+         * @throws std::runtime_error if this object is not a List.
+         */
+        virtual List& getList() = 0;
+
+        /**
+         * @brief Get this object as a List.
+         * @return List& reference to the List object.
+         * @throws std::runtime_error if this object is not a List.
+         */
+        virtual const List& getList() const = 0;
+
         /* Comparison */
 
         /**
@@ -276,6 +375,13 @@ namespace wseml {
         virtual bool equalTo(const List* other) const = 0;
 
         friend std::size_t hash_value(const WSEML& w);
+
+        /**
+         * @brief Recursively updates the back pointers of contained objects.
+         * @param p Pointer to the pair that contains this object as key, data, key role or data role.
+         * @param holder Pointer to the WSEML instance that holds this Object.
+         */
+        virtual void updateLinksRecursively(Pair* p, WSEML* holder) = 0;
 
     private:
         // Object(const Object&) = delete;
@@ -323,9 +429,21 @@ namespace wseml {
          */
         std::string& get();
 
+        ByteString& getByteString() override;
+        const ByteString& getByteString() const override;
+        List& getList() override;
+        const List& getList() const override;
+
         bool equal(const Object* obj) const override;
         bool equalTo(const ByteString* obj) const override;
         bool equalTo(const List* obj) const override;
+
+        /**
+         * @brief Recursively updates the back pointers of contained objects.
+         * @param p Pointer to the pair that contains this object as key, data, key role or data role.
+         * @param holder Pointer to the WSEML instance that holds this Object.
+         */
+        void updateLinksRecursively(Pair* p, WSEML* holder) override;
 
         // Needed for hashing
         friend std::size_t hash_value(const WSEML& w);
@@ -465,6 +583,18 @@ namespace wseml {
         WSEML append(WSEML* listOwner, WSEML data, WSEML key = NULLOBJ, WSEML keyRole = NULLOBJ, WSEML dataRole = NULLOBJ);
 
         /**
+         * @brief Appends a new Pair to the start of the list.
+         * @param listOwner Pointer to the WSEML object that *owns* this List. Needed to set back-pointers correctly.
+         * @param data The data WSEML object (moved).
+         * @param key The key WSEML object (moved, defaults to generated key).
+         * @param keyRole The keyRole WSEML object (moved, defaults to NULLOBJ).
+         * @param dataRole The dataRole WSEML object (moved, defaults to NULLOBJ).
+         * @return The key that was used (either provided or generated).
+         * @note Updates the containing pair pointers of the moved WSEML objects.
+         */
+        WSEML appendFront(WSEML* listOwner, WSEML data, WSEML key = NULLOBJ, WSEML keyRole = NULLOBJ, WSEML dataRole = NULLOBJ);
+
+        /**
          * @brief Removes the last pair from the list.
          * @warning Undefined behavior if the list is empty.
          */
@@ -497,18 +627,6 @@ namespace wseml {
         WSEML insert(size_t index, WSEML* listOwner, WSEML data, WSEML key = NULLOBJ, WSEML keyRole = NULLOBJ, WSEML dataRole = NULLOBJ);
 
         /**
-         * @brief Appends a new Pair to the front of the list.
-         * @param listOwner Pointer to the WSEML object that *owns* this List.
-         * @param data The data WSEML object (moved).
-         * @param key The key WSEML object (moved, defaults to generated key).
-         * @param keyRole The keyRole WSEML object (moved, defaults to NULLOBJ).
-         * @param dataRole The dataRole WSEML object (moved, defaults to NULLOBJ).
-         * @return The key that was used (either provided or generated).
-         * @note Updates contained pointers.
-         */
-        WSEML append_front(WSEML* listOwner, WSEML data, WSEML key = NULLOBJ, WSEML keyRole = NULLOBJ, WSEML dataRole = NULLOBJ);
-
-        /**
          * @brief Returns a const reference to the 'data' stored in the first pair.
          * @warning Undefined behavior if the list is empty.
          */
@@ -532,6 +650,11 @@ namespace wseml {
          */
         WSEML& back();
 
+        ByteString& getByteString() override;
+        const ByteString& getByteString() const override;
+        List& getList() override;
+        const List& getList() const override;
+
         /* Iterators */
 
         iterator begin();
@@ -547,12 +670,18 @@ namespace wseml {
         bool equalTo(const ByteString* obj) const override;
         bool equalTo(const List* obj) const override;
 
+        /**
+         * @brief Recursively updates the back pointers of contained objects.
+         * @param p Pointer to the pair that contains this object as key, data, key role or data role.
+         * @param holder Pointer to the WSEML instance that holds this Object.
+         */
+        void updateLinksRecursively(Pair* p, WSEML* holder) override;
+
+        friend class WSEML;
+
     private:
         std::list<Pair> pairList_;
         unsigned int nextKey_ = 1;
-
-        void updateContainedObjectPairPtrs(Pair& p);
-        void clearContainedObjectPairPtrs(Pair& p);
     };
 
     /**
@@ -580,8 +709,7 @@ namespace wseml {
          * @brief Deep copy constructor.
          * @param other The Pair to copy.
          * @note The new Pair's members will have their `containingPair_` pointer set to `this`.
-         * @note The `listOwner_` pointer is copied from `other`. It must be updated by the container if the Pair is moved to a different list
-         * context.
+         * @note The `listOwner_` pointer is not copied.
          */
         Pair(const Pair& other);
 
@@ -670,14 +798,18 @@ namespace wseml {
         friend std::size_t hash_value(const Pair& p);
         friend std::ostream& operator<<(std::ostream& os, const Pair& pair);
 
+        /**
+         * @brief Recursively updates the back pointers of contained objects.
+         * @param listHolder The pointer to the WSEML instance that holds List that contains this Pair.
+         */
+        void updateLinksRecursively(WSEML* listHolder);
+
     private:
         WSEML key_;
         WSEML data_;
         WSEML keyRole_;
         WSEML dataRole_;
         WSEML* listOwner_ = nullptr;
-
-        void updateMemberPairPointers();
 
         friend class WSEML;
     };

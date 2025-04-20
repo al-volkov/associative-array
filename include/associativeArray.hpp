@@ -59,21 +59,21 @@ namespace wseml {
      */
     bool isFunctionReference(const WSEML& obj);
 
-    /**
-     * @brief Extracts the  path from a  function reference object.
-     * @param funcRef The WSEML object (must be a  function reference).
-     * @return Const reference to the  path string.
-     * @throws std::runtime_error if funcRef is not a valid  function reference.
-     */
-    const std::string& getPath(const WSEML& funcRef);
+    // /**
+    //  * @brief Extracts the  path from a  function reference object.
+    //  * @param funcRef The WSEML object (must be a  function reference).
+    //  * @return Const reference to the  path string.
+    //  * @throws std::runtime_error if funcRef is not a valid  function reference.
+    //  */
+    // const std::string getPath(const WSEML& funcRef);
 
-    /**
-     * @brief Extracts the function name from a  function reference object.
-     * @param funcRef The WSEML object (must be a  function reference).
-     * @return Const reference to the function name string.
-     * @throws std::runtime_error if funcRef is not a valid  function reference.
-     */
-    const std::string& getFuncName(const WSEML& funcRef);
+    // /**
+    //  * @brief Extracts the function name from a  function reference object.
+    //  * @param funcRef The WSEML object (must be a  function reference).
+    //  * @return Const reference to the function name string.
+    //  * @throws std::runtime_error if funcRef is not a valid  function reference.
+    //  */
+    // const std::string getFuncName(const WSEML& funcRef);
 
     /**
      * @brief Calls the function referenced by a WSEML function reference object.

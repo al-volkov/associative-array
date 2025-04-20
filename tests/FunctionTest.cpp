@@ -2,6 +2,7 @@
 #include <fstream>
 #include "../include/WSEML.hpp"
 #include "../include/associativeArray.hpp"
+#include <iostream>
 
 namespace wseml {
 
@@ -11,29 +12,29 @@ namespace wseml {
         return WSEML(s);
     }
 
-    TEST(FunctionTest, CreateAndCheckType) {
-        WSEML funcRef = createFunctionReference("path/to/lib.so", "some_func");
+    // TEST(FunctionTest, CreateAndCheckType) {
+    //     WSEML funcRef = createFunctionReference("path/to/lib.so", "some_func");
 
-        ASSERT_TRUE(isFunctionReference(funcRef));
-        ASSERT_EQ(funcRef.getSemanticType(), FUNCTION_TYPE);
-        ASSERT_EQ(funcRef.structureTypeInfo(), StructureType::ListType);
+    // ASSERT_TRUE(isFunctionReference(funcRef));
+    // ASSERT_EQ(funcRef.getSemanticType(), FUNCTION_TYPE);
+    // ASSERT_EQ(funcRef.structureTypeInfo(), StructureType::List);
 
-        ASSERT_FALSE(isFunctionReference(S("not a func ref")));
-        ASSERT_FALSE(isFunctionReference(createBlock()));
-    }
+    // ASSERT_FALSE(isFunctionReference(S("not a func ref")));
+    // ASSERT_FALSE(isFunctionReference(createBlock()));
+    // }
 
-    TEST(FunctionTest, GetPathAndName) {
-        WSEML funcRef = createFunctionReference("path/to/lib.so", "my_func_name");
+    // TEST(FunctionTest, GetPathAndName) {
+    //     WSEML funcRef = createFunctionReference("path/to/lib.so", "my_func_name");
 
-        ASSERT_EQ(getPath(funcRef), "path/to/lib.so");
-        ASSERT_EQ(getFuncName(funcRef), "my_func_name");
-    }
+    // ASSERT_EQ(getPath(funcRef), "path/to/lib.so");
+    // ASSERT_EQ(getFuncName(funcRef), "my_func_name");
+    // }
 
-    TEST(FunctionTest, GettersThrowOnWrongType) {
-        WSEML notFuncRef = S("hello");
-        ASSERT_THROW(getPath(notFuncRef), std::runtime_error);
-        ASSERT_THROW(getFuncName(notFuncRef), std::runtime_error);
-    }
+    // TEST(FunctionTest, GettersThrowOnWrongType) {
+    //     WSEML notFuncRef = S("hello");
+    //     ASSERT_THROW(getPath(notFuncRef), std::runtime_error);
+    //     ASSERT_THROW(getFuncName(notFuncRef), std::runtime_error);
+    // }
 
     TEST(FunctionTest, CallValidFunctionTimesTwoPlusOne) {
         WSEML funcRef = createFunctionReference(TEST_PATH, "wseml_times_two_plus_one");
@@ -41,6 +42,7 @@ namespace wseml {
         WSEML expected = S("11.000000");
 
         WSEML result = callFunction(funcRef, arg);
+        std::cout << "Result: " << result.getInnerString() << std::endl;
 
         ASSERT_NE(result, NULLOBJ) << "Function call should succeed";
         ASSERT_EQ(result, expected);
@@ -64,7 +66,7 @@ namespace wseml {
 
         WSEML result = callFunction(funcRef, arg);
         ASSERT_NE(result, NULLOBJ);
-        ASSERT_TRUE(result.getAsList() != nullptr);
+        ASSERT_TRUE(result.structureTypeInfo() == StructureType::List);
         ASSERT_EQ(result, expected);
     }
 

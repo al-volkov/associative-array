@@ -1,3 +1,4 @@
+#include <stdexcept>
 #include "../include/WSEML.hpp"
 #include "../include/misc.hpp"
 #include "../include/pointers.hpp"
@@ -6,84 +7,132 @@
 #include "../include/helpFunc.hpp"
 
 namespace wseml {
-
-    /// [':=', dest:ref, data:ref, N:ps]bc
+    /// [":=", dest:ref, data:ref, N:ps]bc
     WSEML assignment(const WSEML& Args) {
-        List* ArgsList = dynamic_cast<List*>(const_cast<Object*>(Args.getRawObject()));
-        WSEML* obj = extractObj(ArgsList->find("obj"));
-        WSEML* stack = extractObj(ArgsList->find("stack"));
-        WSEML* frm = extractObj(ArgsList->find("frm"));
-        WSEML* cmd = extractObj(ArgsList->find("cmd"));
+        /*  Ensure a reference resolves; throw otherwise. */
+        auto mustExtract = [](const WSEML& ref, const char* name) -> WSEML* {
+            WSEML* p = extractObj(ref);
+            if (p == nullptr) {
+                throw std::runtime_error(std::string("assignment: argument '") + name + "' could not be resolved");
+            }
+            return p;
+        };
 
-        List* cmdList = dynamic_cast<List*>(cmd->getRawObject());
-        WSEML& dataRef = cmdList->find("data");
-        WSEML& destRef = cmdList->find("dest");
+        /* Build {addr:<hex>, …}ptr  with a chain of by‑key steps         */
+        auto makePointer = [](const std::string& addr, std::initializer_list<std::string> keys) -> WSEML {
+            WSEML ptr = createAddrPointer(addr); // {addr:...}ptr
+            List& lst = ptr.getList();
+            for (const std::string& k : keys) {
+                lst.append(&ptr, stepTypeToWSEML(StepType::Key), WSEML("t"));
+                lst.append(&ptr, WSEML(k), WSEML("k"));
+            }
+            return ptr;
+        };
 
-        List* proc = dynamic_cast<List*>(obj->getRawObject());
-        List* tables = dynamic_cast<List*>(proc->find("tables").getRawObject());
-        WSEML& data_o = proc->find("data");
-        List* data = dynamic_cast<List*>(data_o.getRawObject());
-        List* uref = dynamic_cast<List*>(tables->find("uref").getRawObject());
-        List* readList = dynamic_cast<List*>(uref->find("read").getRawObject());
-        List* writeList = dynamic_cast<List*>(uref->find("write").getRawObject());
-        List* stackList = dynamic_cast<List*>(stack->getRawObject());
-        List* stackInfo = dynamic_cast<List*>(stackList->find("info").getRawObject());
-        WSEML* wfrm = &stackInfo->find("wfrm");
+        /* Wrap pointer into {type:d, 1:$[ <ptr> ]ptr}   (semantic "ref") */
+        auto makeRef = [](const WSEML& ptr) -> WSEML {
+            WSEML ref = WSEML(std::list<Pair>());
+            List& rl = ref.getList();
+            rl.append(&ref, WSEML("d"), WSEML("type"));
+            rl.append(&ref, ptr, WSEML("1"));
+            ref.setSemanticType(WSEML("ref"));
+            return ref;
+        };
 
-        std::string readDll = dynamic_cast<ByteString*>(readList->find("dllName").getRawObject())->get();
-        std::string readFunc = dynamic_cast<ByteString*>(readList->find("funcName").getRawObject())->get();
-        std::string writeDll = dynamic_cast<ByteString*>(writeList->find("dllName").getRawObject())->get();
-        std::string writeFunc = dynamic_cast<ByteString*>(writeList->find("funcName").getRawObject())->get();
+        const List& args = Args.getList();
 
-        std::string curStackKey = dynamic_cast<ByteString*>(stack->getContainingPair()->getKey().getRawObject())->get();
-        std::string curFrmKey = dynamic_cast<ByteString*>(frm->getContainingPair()->getKey().getRawObject())->get();
-        data->append(
-            &data_o,
+        WSEML* proc = mustExtract(args.find("obj"), "obj");
+        WSEML* stack = mustExtract(args.find("stack"), "stack");
+        WSEML* frm = mustExtract(args.find("frm"), "frm");
+        WSEML* cmd = mustExtract(args.find("cmd"), "cmd");
+
+        List& cmdList = cmd->getList();
+        WSEML& dataRef = cmdList.find("data");
+        WSEML& destRef = cmdList.find("dest");
+
+        if (not isReference(dataRef) or not isReference(destRef)) {
+            throw std::runtime_error("assignment: 'data' or 'dest' is not a reference");
+        }
+
+        List& procList = proc->getList();
+        List& tables = procList.find("tables").getList();
+        List& dataList = procList.find("data").getList();
+
+        List& readList = tables.find("uref").getList().find("read").getList();
+        List& writeList = tables.find("uref").getList().find("write").getList();
+
+        std::string readDll = readList.find("dllName").getInnerString();
+        std::string readFunc = readList.find("funcName").getInnerString();
+        std::string writeDll = writeList.find("dllName").getInnerString();
+        std::string writeFunc = writeList.find("funcName").getInnerString();
+
+        if (stack->getContainingPair() == nullptr) {
+            throw std::runtime_error("assignment: stack not linked into stck");
+        }
+        if (frm->getContainingPair() == nullptr) {
+            throw std::runtime_error("assignment: frame not linked into stack");
+        }
+        std::string curStackKey = stack->getContainingPair()->getKey().getInnerString();
+        std::string curFrmKey = frm->getContainingPair()->getKey().getInnerString();
+
+        dataList.append(
+            &procList.find("data"),
             parse(
                 "{1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:" + curStackKey + "]ps, 4:$[t:k, k:" + curFrmKey +
                 "]ps, 5:$[t:k, k:ip]ps, 6:$[t:i, i:-1]ps}"
             ),
             WSEML("assign_tmpPtr")
         );
-        data->append(&data_o, *cmd, WSEML("assign_cmdCopy"));
-        data->append(&data_o, NULLOBJ, WSEML("assign_tmp"));
+
+        dataList.append(&procList.find("data"), *cmd, WSEML("assign_cmdCopy"));
+        dataList.append(&procList.find("data"), NULLOBJ, WSEML("assign_tmp"));
+
+        List& stackList = stack->getList();
+        List& stackInfo = stackList.find("info").getList();
+        WSEML* wfrm = &stackInfo.find("wfrm");
 
         WSEML equivKey = createEquiv(stack, wfrm, frm, "assignment", "16");
 
-        std::string procStr = getAddrStr(obj);
-        WSEML ipRef = parse("{type:d, 1:$[type:d, 1:$[comp:$[addr:" + procStr + "]ptr, 1:$[t:k, k:data]ps, 2:$[t:k, k:assign_tmpPtr]ps]ptr]ref}");
-        WSEML newPs = parse("{type:d, 1:$[comp:$[addr:" + procStr + "]ptr, 2:$[t:k, k:data]ps, 3:$[t:k, k:assign_cmdCopy]ps, 4$[t:k, k:N]ps]ptr}");
-        ipRef.setSemanticType(WSEML("ref"));
-        newPs.setSemanticType(WSEML("ref"));
+        std::string procAddr = getAddrStr(proc);
 
-        std::list<Pair> tmp;
-        WSEML refArgs(tmp);
-        List* args = dynamic_cast<List*>(const_cast<Object*>(refArgs.getRawObject()));
-        args->append(&refArgs, ipRef, WSEML("ref"));
-        args->append(&refArgs, newPs, WSEML("data"));
+        WSEML ipRef = makeRef(makePointer(procAddr, {"data", "assign_tmpPtr"}));
+
+        WSEML newPs = makeRef(makePointer(procAddr, {"data", "assign_cmdCopy", "N"}));
+
+        /* reusable Args list for DLLs */
+        WSEML refArgs = WSEML(std::list<Pair>());
+        List& refList = refArgs.getList();
+        refList.append(&refArgs, ipRef, WSEML("ref"));
+        refList.append(&refArgs, newPs, WSEML("data"));
+
         WSEML res;
-        if (cmdList->back() != NULLOBJ) {
+        if (cmdList.back() != NULLOBJ) {
             res = callFunc(writeDll.c_str(), writeFunc.c_str(), refArgs);
-            if (res == WSEML("stopped"))
+            if (res == WSEML("stopped")) {
                 return res;
+            }
         }
 
-        changeCommand(stackList, equivKey, "17");
+        changeCommand(&stackList, equivKey, "17");
 
-        args->find("ref") = dataRef;
-        args->find("data") = parse("{type:d, 1:$[comp:$[addr:" + procStr + "]ptr, 1:$[t:k, k:data]ps, 2:$[t:k, k:assign_tmp]ps]ptr}");
+        refList.find("ref") = dataRef;
+        refList.find("data") = makeRef(makePointer(procAddr, {"data", "assign_tmp"}));
+
         res = callFunc(readDll.c_str(), readFunc.c_str(), refArgs);
-        if (res == WSEML("stopped"))
+        if (res == WSEML("stopped")) {
             return res;
+        }
 
-        changeCommand(stackList, equivKey, "18");
-        args->find("ref") = destRef;
+        changeCommand(&stackList, equivKey, "18");
+
+        refList.find("ref") = destRef;
         res = callFunc(writeDll.c_str(), writeFunc.c_str(), refArgs);
-        if (res == WSEML("stopped"))
+        if (res == WSEML("stopped")) {
             return res;
+        }
 
-        WSEML DataKeys = parse("{1:assign_tmp, 2:assign_cmdCopy, 3:assign_tmpPtr}");
-        clear(stackList, data, wfrm, equivKey, DataKeys);
+        WSEML tempKeys = parse("{1:assign_tmp, 2:assign_cmdCopy, 3:assign_tmpPtr}");
+        clear(&stackList, &dataList, wfrm, equivKey, tempKeys);
 
         return WSEML("completed");
     }

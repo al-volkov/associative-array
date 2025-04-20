@@ -1,13 +1,11 @@
-#include "../include/WSEML.hpp"
-#include "../include/pointers.hpp"
-#include "../include/parser.hpp"
-#include "../include/dllconfig.hpp"
-#include "../include/associativeArray.hpp"
-#include "boost/container_hash/hash.hpp"
 #include <string>
 #include <ranges>
 #include <algorithm>
-#include <iostream>
+#include "../include/WSEML.hpp"
+#include "../include/hashUtils.hpp"
+#include "../include/parser.hpp"
+#include "../include/dllconfig.hpp"
+#include "../include/associativeArray.hpp"
 
 namespace wseml {
 
@@ -17,57 +15,57 @@ namespace wseml {
 
     /*  WSEML implementation */
 
-    void WSEML::updateContainedListPointers() {
-        if (List* list_obj = getAsList()) {
-            for (auto&& pair : list_obj->get()) {
-                pair.setListOwner(this);
-                pair.updateMemberPairPointers();
-            }
-        }
-    }
-
-    void WSEML::updatePairPointers(Pair* containingPair) {
-        if (obj_) {
-            obj_->setContainingPair(containingPair);
-        }
-    }
-
     WSEML::WSEML()
         : obj_(nullptr) {
     }
 
-    WSEML::WSEML(Object* obj)
-        : obj_(obj) {
+    WSEML::WSEML(std::unique_ptr<List> list)
+        : obj_(std::move(list)) {
+        // Since this is a new WSEML instance, it can't be part of any pair already.
+        if (obj_) {
+            obj_->updateLinksRecursively(nullptr, this);
+        }
+    }
+
+    WSEML::WSEML(std::unique_ptr<ByteString> bytes)
+        : obj_(std::move(bytes)) {
+        // Since this is a new WSEML instance, it can't be part of any pair already.
+        if (obj_) {
+            obj_->updateLinksRecursively(nullptr, this);
+        }
     }
 
     WSEML::WSEML(std::string str, const WSEML& type, Pair* p)
         : obj_(std::make_unique<ByteString>(std::move(str), type, p)) {
+        // Since its just a ByteString, passing p to constructor is enough.
     }
 
     WSEML::WSEML(std::list<Pair> l, const WSEML& type, Pair* p)
         : obj_(std::make_unique<List>(std::move(l), type, p)) {
-        updateContainedListPointers();
+        // Since this List can already contain some pairs, we have to update the pointers.
+        obj_->updateLinksRecursively(p, this);
     }
 
     WSEML::WSEML(const WSEML& other)
         : obj_(other.obj_ ? other.obj_->clone() : nullptr) {
-        if (obj_ && obj_->structureTypeInfo() == StructureType::ListType) {
-            updateContainedListPointers();
+        if (obj_) {
+            obj_->updateLinksRecursively(nullptr, this);
         }
     }
 
     WSEML::WSEML(WSEML&& other) noexcept
         : obj_(std::move(other.obj_)) {
-        if (obj_ && obj_->structureTypeInfo() == StructureType::ListType) {
-            updateContainedListPointers();
+        other.obj_ = nullptr;
+        if (obj_) {
+            obj_->updateLinksRecursively(nullptr, this);
         }
     }
 
     WSEML& WSEML::operator=(const WSEML& other) {
         if (this != &other) {
             obj_ = (other.obj_ ? other.obj_->clone() : nullptr);
-            if (obj_ && obj_->structureTypeInfo() == StructureType::ListType) {
-                updateContainedListPointers();
+            if (obj_) {
+                obj_->updateLinksRecursively(nullptr, this);
             }
         }
         return *this;
@@ -76,10 +74,10 @@ namespace wseml {
     WSEML& WSEML::operator=(WSEML&& other) noexcept {
         if (this != &other) {
             obj_ = std::move(other.obj_);
-            if (obj_ && obj_->structureTypeInfo() == StructureType::ListType) {
-                updateContainedListPointers();
-            }
             other.obj_ = nullptr;
+            if (obj_) {
+                obj_->updateLinksRecursively(nullptr, this);
+            }
         }
         return *this;
     }
@@ -148,14 +146,14 @@ namespace wseml {
 
     const WSEML& WSEML::getSemanticType() const {
         if (!obj_) {
-            throw std::runtime_error("Attemp to get semantic type from empty WSEML");
+            throw std::runtime_error("Attempt to get semantic type from empty WSEML");
         }
         return obj_->getSemanticType();
     }
 
     void WSEML::setSemanticType(const WSEML& newType) {
         if (!obj_) {
-            throw std::runtime_error("Attemp to set semantic type on empty WSEML");
+            throw std::runtime_error("Attempt to set semantic type on empty WSEML");
         }
         obj_->setSemanticType(newType);
     }
@@ -169,32 +167,79 @@ namespace wseml {
         return obj_ ? obj_->getContainingPair() : nullptr;
     }
 
-    const List* WSEML::getAsList() const {
-        if (obj_ && obj_->structureTypeInfo() == StructureType::ListType) {
-            return dynamic_cast<List*>(obj_.get());
+    const List& WSEML::getList() const {
+        if (obj_ && obj_->structureTypeInfo() == StructureType::List) {
+            return static_cast<List&>(*obj_);
         }
-        return nullptr;
+        throw std::runtime_error("Attempt to get List& from WSEML that doesn't contain a List");
     }
 
-    List* WSEML::getAsList() {
-        if (obj_ && obj_->structureTypeInfo() == StructureType::ListType) {
-            return dynamic_cast<List*>(obj_.get());
+    List& WSEML::getList() {
+        if (obj_ && obj_->structureTypeInfo() == StructureType::List) {
+            return static_cast<List&>(*obj_);
         }
-        return nullptr;
+        throw std::runtime_error("Attempt to get List& from WSEML that doesn't contain a List");
+    }
+    WSEML WSEML::append(WSEML data, WSEML key, WSEML keyRole, WSEML dataRole) {
+        if (not obj_ or obj_->structureTypeInfo() != StructureType::List) {
+            throw std::runtime_error("Attempt to append to WSEML that doesn't contain a List");
+        }
+        return getList().append(this, std::move(data), std::move(key), std::move(keyRole), std::move(dataRole));
     }
 
-    const ByteString* WSEML::getAsByteString() const {
-        if (obj_ && obj_->structureTypeInfo() == StructureType::StringType) {
-            return dynamic_cast<ByteString*>(obj_.get());
+    WSEML WSEML::appendFront(WSEML data, WSEML key, WSEML keyRole, WSEML dataRole) {
+        if (not obj_ or obj_->structureTypeInfo() != StructureType::List) {
+            throw std::runtime_error("Attempt to append to WSEML that doesn't contain a List");
         }
-        return nullptr;
+        return getList().appendFront(this, std::move(data), std::move(key), std::move(keyRole), std::move(dataRole));
     }
 
-    ByteString* WSEML::getAsByteString() {
-        if (obj_ && obj_->structureTypeInfo() == StructureType::StringType) {
-            return dynamic_cast<ByteString*>(obj_.get());
+    std::list<Pair>& WSEML::getInnerList() {
+        if (obj_ && obj_->structureTypeInfo() == StructureType::List) {
+            return static_cast<List*>(obj_.get())->get();
         }
-        return nullptr;
+        throw std::runtime_error("Attempt to get std::list<Pair> from WSEML that doesn't contain a List");
+    }
+
+    const std::list<Pair>& WSEML::getInnerList() const {
+        if (obj_ && obj_->structureTypeInfo() == StructureType::List) {
+            return static_cast<List*>(obj_.get())->get();
+        }
+        throw std::runtime_error("Attempt to get std::list<Pair> from WSEML that doesn't contain a List");
+    }
+
+    const ByteString& WSEML::getByteString() const {
+        if (obj_ && obj_->structureTypeInfo() == StructureType::String) {
+            return static_cast<ByteString&>(*obj_);
+        }
+        throw std::runtime_error("Attempt to get ByteString& from WSEML that doesn't contain a ByteString");
+    }
+
+    ByteString& WSEML::getByteString() {
+        if (obj_ && obj_->structureTypeInfo() == StructureType::String) {
+            return static_cast<ByteString&>(*obj_);
+        }
+        throw std::runtime_error("Attempt to get ByteString& from WSEML that doesn't contain a ByteString");
+    }
+
+    std::string& WSEML::getInnerString() {
+        if (obj_ && obj_->structureTypeInfo() == StructureType::String) {
+            return static_cast<ByteString*>(obj_.get())->get();
+        }
+        throw std::runtime_error("Attempt to get std::string from WSEML that doesn't contain a ByteString");
+    }
+
+    const std::string& WSEML::getInnerString() const {
+        if (obj_ && obj_->structureTypeInfo() == StructureType::String) {
+            return static_cast<ByteString*>(obj_.get())->get();
+        }
+        throw std::runtime_error("Attempt to get std::string from WSEML that doesn't contain a ByteString");
+    }
+
+    void WSEML::updateLinksRecursively(Pair* p) {
+        if (obj_) {
+            obj_->updateLinksRecursively(p, this);
+        }
     }
 
     size_t hash_value(const WSEML& w) {
@@ -205,32 +250,32 @@ namespace wseml {
         const WSEML& objType = w.getSemanticType();
 
         size_t seed = 0;
-        boost::hash_combine(seed, objType);
+        wseml::hash::hash_combine(seed, objType);
 
-        if (w.obj_->structureTypeInfo() == StructureType::StringType) {
+        if (w.obj_->structureTypeInfo() == StructureType::String) {
             ByteString* byteStringObj = dynamic_cast<ByteString*>(w.obj_.get());
-            boost::hash_combine(seed, byteStringObj->get());
+            wseml::hash::hash_combine(seed, byteStringObj->get());
             return seed;
         }
 
-        if (w.obj_->structureTypeInfo() == StructureType::ListType and objType == AATYPE) {
+        if (w.obj_->structureTypeInfo() == StructureType::List and objType == AATYPE) {
             WSEML merged = merge(w);
-            if (not merged.getAsList()->get().empty()) {
-                boost::hash_combine(seed, merged.getAsList()->front());
+            if (not merged.getInnerList().empty()) {
+                wseml::hash::hash_combine(seed, merged.getList().front());
             }
             return seed;
         }
 
-        if (w.obj_->structureTypeInfo() == StructureType::ListType and objType == BLOCKTYPE) {
-            const std::list<Pair>& pairList = w.getAsList()->get();
+        if (w.obj_->structureTypeInfo() == StructureType::List and objType == BLOCKTYPE) {
+            const std::list<Pair>& pairList = w.getInnerList();
             auto dataView = pairList | std::ranges::views::transform([](const auto& pair) { return pair.getData(); });
-            boost::hash_combine(seed, boost::hash_unordered_range(dataView.begin(), dataView.end()));
+            wseml::hash::hash_combine(seed, wseml::hash::hash_unordered_range(dataView.begin(), dataView.end()));
             return seed;
         }
 
-        if (w.obj_->structureTypeInfo() == StructureType::ListType) {
-            const std::list<Pair>& pairList = w.getAsList()->get();
-            boost::hash_combine(seed, boost::hash_range(pairList.begin(), pairList.end()));
+        if (w.obj_->structureTypeInfo() == StructureType::List) {
+            const std::list<Pair>& pairList = w.getInnerList();
+            wseml::hash::hash_combine(seed, wseml::hash::hash_range(pairList.begin(), pairList.end()));
             return seed;
         }
 
@@ -292,7 +337,22 @@ namespace wseml {
     }
 
     StructureType ByteString::structureTypeInfo() const {
-        return StructureType::StringType;
+        return StructureType::String;
+    }
+
+    ByteString& ByteString::getByteString() {
+        return *this;
+    }
+    const ByteString& ByteString::getByteString() const {
+        return *this;
+    }
+
+    List& ByteString::getList() {
+        throw std::runtime_error("Attempt to get ByteString as List");
+    };
+
+    const List& ByteString::getList() const {
+        throw std::runtime_error("Attempt to get ByteString as List");
     }
 
     bool ByteString::equal(const Object* obj) const {
@@ -307,21 +367,11 @@ namespace wseml {
         return false;
     }
 
+    void ByteString::updateLinksRecursively(Pair* p, [[maybe_unused]] WSEML* holder) {
+        setContainingPair(p);
+    }
+
     /* List implementation */
-
-    void List::updateContainedObjectPairPtrs(Pair& p) {
-        p.getKey().updatePairPointers(&p);
-        p.getData().updatePairPointers(&p);
-        p.getKeyRole().updatePairPointers(&p);
-        p.getDataRole().updatePairPointers(&p);
-    }
-
-    void List::clearContainedObjectPairPtrs(Pair& p) {
-        p.getKey().updatePairPointers(nullptr);
-        p.getData().updatePairPointers(nullptr);
-        p.getKeyRole().updatePairPointers(nullptr);
-        p.getDataRole().updatePairPointers(nullptr);
-    }
 
     List::List()
         : Object(NULLOBJ, nullptr)
@@ -348,7 +398,7 @@ namespace wseml {
     }
 
     StructureType List::structureTypeInfo() const {
-        return StructureType::ListType;
+        return StructureType::List;
     }
 
     WSEML List::genKey() {
@@ -408,6 +458,12 @@ namespace wseml {
         return finalKey;
     }
 
+    WSEML List::appendFront(WSEML* listOwner, WSEML data, WSEML key, WSEML keyRole, WSEML dataRole) {
+        WSEML finalKey = (key == NULLOBJ) ? genKey() : std::move(key);
+        pairList_.emplace_front(listOwner, finalKey, std::move(data), std::move(keyRole), std::move(dataRole));
+        return finalKey;
+    }
+
     void List::pop_back() {
         if (!pairList_.empty()) {
             pairList_.back().setListOwner(nullptr);
@@ -428,12 +484,6 @@ namespace wseml {
         auto it = pairList_.begin();
         std::advance(it, index);
         return insert(it, listOwner, std::move(data), std::move(key), std::move(keyRole), std::move(dataRole));
-    }
-
-    WSEML List::append_front(WSEML* listOwner, WSEML data, WSEML key, WSEML keyRole, WSEML dataRole) {
-        WSEML finalKey = (key == NULLOBJ) ? genKey() : std::move(key);
-        pairList_.emplace_front(listOwner, finalKey, std::move(data), std::move(keyRole), std::move(dataRole));
-        return finalKey;
     }
 
     const WSEML& List::front() const {
@@ -462,6 +512,22 @@ namespace wseml {
             throw std::runtime_error("Accessing back() of empty List");
         }
         return pairList_.back().getData();
+    }
+
+    ByteString& List::getByteString() {
+        throw std::runtime_error("Attempt to get List as ByteString");
+    }
+
+    const ByteString& List::getByteString() const {
+        throw std::runtime_error("Attempt to get List as ByteString");
+    }
+
+    List& List::getList() {
+        return *this;
+    }
+
+    const List& List::getList() const {
+        return *this;
     }
 
     /* Iterators */
@@ -507,7 +573,14 @@ namespace wseml {
         return this->pairList_.size() == obj->pairList_.size() && std::equal(this->pairList_.begin(), this->pairList_.end(), obj->pairList_.begin());
     }
 
-    /* Pair implmenetation */
+    void List::updateLinksRecursively(Pair* p, WSEML* holder) {
+        setContainingPair(p);
+        for (auto& pair : pairList_) {
+            pair.updateLinksRecursively(holder);
+        }
+    }
+
+    /* Pair implementation */
 
     Pair::Pair(WSEML* listPtr, WSEML key, WSEML data, WSEML keyRole, WSEML dataRole)
         : key_(std::move(key))
@@ -515,7 +588,7 @@ namespace wseml {
         , keyRole_(std::move(keyRole))
         , dataRole_(std::move(dataRole))
         , listOwner_(listPtr) {
-        updateMemberPairPointers();
+        this->updateLinksRecursively(listPtr);
     }
 
     Pair::Pair(const Pair& other) {
@@ -524,9 +597,9 @@ namespace wseml {
             data_ = other.data_;
             keyRole_ = other.keyRole_;
             dataRole_ = other.dataRole_;
-            listOwner_ = other.listOwner_;
+            listOwner_ = nullptr;
+            this->updateLinksRecursively(this->listOwner_);
         }
-        updateMemberPairPointers();
     }
 
     Pair::Pair(Pair&& other) noexcept
@@ -536,7 +609,7 @@ namespace wseml {
         , dataRole_(std::move(other.dataRole_))
         , listOwner_(other.listOwner_) {
         other.listOwner_ = nullptr;
-        updateMemberPairPointers();
+        this->updateLinksRecursively(this->listOwner_);
     }
 
     Pair& Pair::operator=(const Pair& other) {
@@ -545,9 +618,9 @@ namespace wseml {
             data_ = other.data_;
             keyRole_ = other.keyRole_;
             dataRole_ = other.dataRole_;
-            listOwner_ = other.listOwner_;
+            listOwner_ = nullptr;
+            this->updateLinksRecursively(this->listOwner_);
         }
-        updateMemberPairPointers();
         return *this;
     }
 
@@ -559,8 +632,8 @@ namespace wseml {
             dataRole_ = std::move(other.dataRole_);
             listOwner_ = other.listOwner_;
             other.listOwner_ = nullptr;
+            this->updateLinksRecursively(this->listOwner_);
         }
-        updateMemberPairPointers();
         return *this;
     }
 
@@ -608,19 +681,20 @@ namespace wseml {
         return (this->key_ == p.key_) && (this->data_ == p.data_) && (this->keyRole_ == p.keyRole_) && (this->dataRole_ == p.dataRole_);
     }
 
-    void Pair::updateMemberPairPointers() {
-        key_.updatePairPointers(this);
-        data_.updatePairPointers(this);
-        keyRole_.updatePairPointers(this);
-        dataRole_.updatePairPointers(this);
+    void Pair::updateLinksRecursively(WSEML* holder) {
+        setListOwner(holder);
+        key_.updateLinksRecursively(this);
+        data_.updateLinksRecursively(this);
+        keyRole_.updateLinksRecursively(this);
+        dataRole_.updateLinksRecursively(this);
     }
 
     std::size_t hash_value(const Pair& p) {
         std::size_t seed = 0;
-        boost::hash_combine(seed, p.getKey());
-        boost::hash_combine(seed, p.getData());
-        boost::hash_combine(seed, p.getKeyRole());
-        boost::hash_combine(seed, p.getDataRole());
+        wseml::hash::hash_combine(seed, p.getKey());
+        wseml::hash::hash_combine(seed, p.getData());
+        wseml::hash::hash_combine(seed, p.getKeyRole());
+        wseml::hash::hash_combine(seed, p.getDataRole());
         return seed;
     }
 
@@ -673,7 +747,7 @@ namespace wseml {
             newDispList->find("1") = equivFrm;
             wlist->get().pop_front();
             WSEML equivKey = stckList->append(&stck, newDisp);
-            WSEML wlistEquivKey = wlist->append_front(&infoList->find("wlist"), equivKey);
+            WSEML wlistEquivKey = wlist->appendFront(&infoList->find("wlist"), equivKey);
             curStackNext->append(&curStackInfo->find("next"), wlistEquivKey, equivKey);
 
             if (startFrm == WSEML("func")) {
@@ -684,7 +758,7 @@ namespace wseml {
                 if (res == WSEML("completed")) {
                     auto predStackPair = newDispPred->get().begin();
                     wlist->erase(wlistEquivKey);
-                    wlist->append_front(
+                    wlist->appendFront(
                         &infoList->find("wlist"),
                         predStackPair->getData(),
                         predStackPair->getKey(),
@@ -710,7 +784,7 @@ namespace wseml {
                 newDisp2List->find("1") = equivFrm;
                 wlist->get().pop_front();
                 equivKey = stckList->append(&stck, newDisp2);
-                wlistEquivKey = wlist->append_front(&infoList->find("wlist"), equivKey);
+                wlistEquivKey = wlist->appendFront(&infoList->find("wlist"), equivKey);
                 newDispNext->append(&newDispInfo->find("next"), wlistEquivKey, equivKey);
 
                 WSEML dispKey = newDisp2List->append(&stckList->find(equivKey), startFrm);

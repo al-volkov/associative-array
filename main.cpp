@@ -2,8 +2,8 @@
 #include <string>
 #include <vector>
 #include <utility>
-#include "WSEML.hpp"
-#include "associativeArray.hpp"
+#include "include/WSEML.hpp"
+#include "include/associativeArray.hpp"
 
 namespace wseml {
     const std::string TEST_LIB_PATH = "libtest_func.so";

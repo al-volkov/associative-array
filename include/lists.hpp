@@ -1,8 +1,10 @@
 #pragma once
+#include "WSEML.hpp"
+#include "parser.hpp"
 namespace wseml {
 
     /// [type:`:=', dest:ref, data:ref, N:ps]
-    WSEML assignList = parse(
+    inline WSEML assignList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:assign_tmp]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:assign_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
@@ -32,7 +34,7 @@ namespace wseml {
         "}"
     );
     /// [type:`+', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML additionList = parse(
+    inline WSEML additionList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:add_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:add_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -68,7 +70,7 @@ namespace wseml {
         "}"
     );
     /// [type:`-', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML subtractionList = parse(
+    inline WSEML subtractionList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:sub_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:sub_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -104,7 +106,7 @@ namespace wseml {
         "}"
     );
     /// [type:`*', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML multiplicationList = parse(
+    inline WSEML multiplicationList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:mult_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:mult_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -140,7 +142,7 @@ namespace wseml {
         "}"
     );
     /// [type:`/', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML divisionList = parse(
+    inline WSEML divisionList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:div_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:div_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -176,7 +178,7 @@ namespace wseml {
         "}"
     );
     /// [type:`%', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML remainderList = parse(
+    inline WSEML remainderList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:mod_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:mod_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -212,7 +214,7 @@ namespace wseml {
         "}"
     );
     /// [type:`^', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML powerList = parse(
+    inline WSEML powerList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:pow_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:pow_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -248,7 +250,7 @@ namespace wseml {
         "}"
     );
     /// [type:`.', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML concatList = parse(
+    inline WSEML concatList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:concat_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:concat_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -284,7 +286,7 @@ namespace wseml {
         "}"
     );
     /// [type:`=', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML isEqList = parse(
+    inline WSEML isEqList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:eq_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:eq_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -320,7 +322,7 @@ namespace wseml {
         "}"
     );
     /// [type:`!=', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML isNeqList = parse(
+    inline WSEML isNeqList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:neq_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:neq_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -356,7 +358,7 @@ namespace wseml {
         "}"
     );
     /// [type:`<', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML isLessList = parse(
+    inline WSEML isLessList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:less_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:less_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -392,7 +394,7 @@ namespace wseml {
         "}"
     );
     /// [type:`>', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML isGreaterList = parse(
+    inline WSEML isGreaterList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:greater_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:greater_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -428,7 +430,7 @@ namespace wseml {
         "}"
     );
     /// [type:`<=', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML isLeqList = parse(
+    inline WSEML isLeqList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:leq_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:leq_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -464,7 +466,7 @@ namespace wseml {
         "}"
     );
     /// [type:`>=', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML isGeqList = parse(
+    inline WSEML isGeqList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:geq_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:geq_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -500,7 +502,7 @@ namespace wseml {
         "}"
     );
     /// [type:`&&', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML logicAndList = parse(
+    inline WSEML logicAndList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:and_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:and_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -536,7 +538,7 @@ namespace wseml {
         "}"
     );
     /// [type:`||', R:ref, O1:ref, O2:ref, N:ps]
-    WSEML logicOrList = parse(
+    inline WSEML logicOrList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:or_O1]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:or_O2]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -572,7 +574,7 @@ namespace wseml {
         "}"
     );
     /// [type:`!', R:ref, O:ref, N:ps]
-    WSEML logicNotList = parse(
+    inline WSEML logicNotList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:not_O]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:not_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
@@ -605,7 +607,7 @@ namespace wseml {
         "}"
     );
     /// [type:`I', R:ref, L:ref, RK:ref, K:ref, RD:ref, D:ref, I:ref N:ps]
-    WSEML insertList = parse(
+    inline WSEML insertList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:insert_L]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:insert_RK]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -659,7 +661,7 @@ namespace wseml {
         "}"
     );
     /// [type:`D', O:ref, N:ps]
-    WSEML eraseList = parse(
+    inline WSEML eraseList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:erase_O]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:erase_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
@@ -689,7 +691,7 @@ namespace wseml {
         "}"
     );
     /// [type:`P', O:ref, N:ps]
-    WSEML toIList = parse(
+    inline WSEML toIList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:toK_O]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:toK_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
@@ -719,7 +721,7 @@ namespace wseml {
         "}"
     );
     /// [type:`K', O:ref, N:ps]
-    WSEML toKList = parse(
+    inline WSEML toKList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:toK_O]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:toK_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
@@ -749,7 +751,7 @@ namespace wseml {
         "}"
     );
     /// [type:`E', R:ref, P:ref, N:ps]
-    WSEML isDerefList = parse(
+    inline WSEML isDerefList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:isDeref_O]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:isDeref_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
@@ -780,7 +782,7 @@ namespace wseml {
         "}"
     );
     /// [type:`C', R:ref, F:ref, A:ref, N:ps]
-    WSEML callList = parse(
+    inline WSEML callList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:call_F]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:call_A]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -816,7 +818,7 @@ namespace wseml {
         "}"
     );
     /// [type:`U', R:ref, D:ref, N:ps]
-    WSEML callPrevDispList = parse(
+    inline WSEML callPrevDispList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:callPrevDisp_D]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:callPrevDisp_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
@@ -854,7 +856,7 @@ namespace wseml {
         "}"
     );
     /// [type:`V', R:ref, D:ref, N:ps]
-    WSEML callPrevProgList = parse(
+    inline WSEML callPrevProgList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:callPrevProg_D]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:callPrevProg_tmpPtr]ref, RD:$, D:$[type:i, 1:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref]ref, I:$, N:$]bc, "
@@ -896,7 +898,7 @@ namespace wseml {
         "}"
     );
     /// [type:`T', R:ref, O:ref, N:ps]
-    WSEML readTypeList = parse(
+    inline WSEML readTypeList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:readType_O]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:readType_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
@@ -929,7 +931,7 @@ namespace wseml {
         "}"
     );
     /// [type:`S', O:ref, T:ref, N:ps]
-    WSEML setTypeList = parse(
+    inline WSEML setTypeList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:setType_O]ref, RD:$, D:$, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:setType_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
@@ -963,7 +965,7 @@ namespace wseml {
         "}"
     );
     /// [type:`?', C:ref, T:ps, F:ps]st
-    WSEML ifList = parse(
+    inline WSEML ifList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:if_cond]ref, RD:$, D:$[type:i, 1:{0:$, 1:$}]ref, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:if_tmpPtr]ref, RD:$, D:$[type:d, 1:{1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr}]ref, I:$, N:$]bc, "
@@ -995,7 +997,7 @@ namespace wseml {
     );
 
     /// [type:`F', R:ref, P1:ref, P2, ... , PM:ref]st
-    WSEML forkList = parse(
+    inline WSEML forkList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:fork_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:fork_cmdCopy]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -1050,7 +1052,7 @@ namespace wseml {
     );
 
     /// [type:`Z', R:ref, O1:ref, O2:ref, N:ps]st
-    WSEML getBranchKeyList = parse(
+    inline WSEML getBranchKeyList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:getBranchKey_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:getBranchKey_cmdCopy]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -1088,7 +1090,7 @@ namespace wseml {
         "}"
     );
     /// [type:`z', R:ref, O:ref, N:ps]st
-    WSEML getBranchSeqList = parse(
+    inline WSEML getBranchSeqList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:getBranchSeq_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:getBranchSeq_cmdCopy]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -1140,7 +1142,7 @@ namespace wseml {
         "}"
     );
     /// [type:`x']st
-    WSEML eraseFrmList = parse(
+    inline WSEML eraseFrmList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:eraseFrm_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:eraseFrm_curList]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:$]ps, 5:$[t:k, k:info]ps, 6:$[t:k, k:next]ps]ptr]ref, I:$, N:$]bc, "
@@ -1203,7 +1205,7 @@ namespace wseml {
         "}"
     );
     /// [type:`X']st
-    WSEML eraseStackList = parse(
+    inline WSEML eraseStackList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:eraseStack_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:origin]ps]ptr]ref, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:eraseStack_otherStack]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:next]ps]ptr]ref, I:$, N:$]bc, "
@@ -1255,7 +1257,7 @@ namespace wseml {
         "}"
     );
     /// [type:`c', R:ref, A:ref, N:ps]st // TODO R?
-    WSEML listCall = parse(
+    inline WSEML listCall = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:listCall_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:listCall_cmdCopy]ref, RD:$, D:$, I:$, N:$]bc, "
@@ -1291,7 +1293,7 @@ namespace wseml {
         "}"
     );
     /// [type:`R', R:ref, O:ref, N:ps]st
-    WSEML interruptList = parse(
+    inline WSEML interruptList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:interrupt_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:interrupt_helpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
@@ -1358,7 +1360,7 @@ namespace wseml {
         "}"
     );
     /// [type:`r', R:ref, O:ref, N:ps]st
-    WSEML resumeList = parse(
+    inline WSEML resumeList = parse(
         "{"
         "1:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:resume_tmpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "
         "2:$[type:`I', R:$, L:$[type:d, 1:$[1:$[t:r]ps, 2:$[t:k, k:data]ps]ptr]ref, RK:$, K:$[type:i, 1:resume_helpPtr]ref, RD:$, D:$[type:i, 1:$[1:$[t:r]ps, 2:$[t:k, k:stck]ps, 3:$[t:k, k:$]ps, 4:$[t:k, k:info]ps, 5:$[t:k, k:wfrm]ps, 6:$[t:i, i:0]ps]ptr]ref, I:$, N:$]bc, "

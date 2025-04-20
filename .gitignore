@@ -31,7 +31,8 @@
 *.out
 *.app
 
-build/
+build*/
 .vscode/
 docs/
 deps/
+.cache/

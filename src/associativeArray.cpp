@@ -1,13 +1,16 @@
-#include "../include/WSEML.hpp"
-#include "../include/associativeArray.hpp"
-#include <optional>
 #include <string>
 #include <unordered_set>
 #include <unordered_map>
-#include <range/v3/all.hpp>
 #include <dlfcn.h>
+#include <ranges>
+#include <iostream>
+#include <optional>
+#include "../include/WSEML.hpp"
+#include "../include/associativeArray.hpp"
+#include "../include/executor.hpp"
 
-namespace rv = ranges::views;
+namespace ranges = std::ranges;
+namespace views = std::views;
 
 namespace wseml {
     WSEML AATYPE = WSEML("@AATYPE@");
@@ -23,112 +26,124 @@ namespace wseml {
         }
 
         WSEML funcAssoc = WSEML(std::list<Pair>(), FUNC_ASSOC_TYPE);
-        List* funcAssocList = funcAssoc.getAsList();
-
-        funcAssocList->append(&funcAssoc, triggerType);
-        funcAssocList->append(&funcAssoc, functionReference);
+        funcAssoc.append(triggerType, WSEML("trigger_type"));
+        funcAssoc.append(functionReference, WSEML("function_reference"));
         return funcAssoc;
     }
 
     bool isFunctionalAssociation(const WSEML& obj) {
-        return obj.hasObject() and obj.getSemanticType() == FUNC_ASSOC_TYPE and obj.getRawObject()->structureTypeInfo() == StructureType::ListType and
-               obj.getAsList()->get().size() == 2 and obj.getAsList()->front().hasObject() and
-               obj.getAsList()->back().getSemanticType() == FUNCTION_TYPE;
+        return (obj.hasObject() and obj.getSemanticType() == FUNC_ASSOC_TYPE) and (obj.getRawObject()->structureTypeInfo() == StructureType::List) and
+               (obj.getList().find("trigger_type") != NULLOBJ) and (obj.getList().find("function_reference") != NULLOBJ);
     }
 
     const WSEML& getFuncAssocTriggerType(const WSEML& funcAssoc) {
         if (not isFunctionalAssociation(funcAssoc)) {
             throw std::runtime_error("getFuncAssocTriggerType: funcAssoc is not a valid functional association");
         }
-        return funcAssoc.getAsList()->front();
+        return funcAssoc.getList().find("trigger_type");
     }
 
     const WSEML& getFuncAssocFunction(const WSEML& funcAssoc) {
         if (not isFunctionalAssociation(funcAssoc)) {
             throw std::runtime_error("getFuncAssocFunction: funcAssoc is not a valid functional association");
         }
-        return funcAssoc.getAsList()->back();
+        return funcAssoc.getList().find("function_reference");
     }
 
     /* Functions */
 
     WSEML createFunctionReference(const std::string& path, const std::string& funcName) {
-        WSEML funcRef = WSEML(std::list<Pair>(), FUNCTION_TYPE);
-        funcRef.getAsList()->append(&funcRef, path);
-        funcRef.getAsList()->append(&funcRef, funcName);
+        WSEML funcRef(std::list<Pair>(), FUNCTION_TYPE);
+        funcRef.append(WSEML(path), WSEML("path"));
+        funcRef.append(WSEML(funcName), WSEML("funcName"));
+        funcRef.append(WSEML("direct"), WSEML("function_type"));
+        return funcRef;
+    }
+
+    WSEML createStackFunctionReference(const WSEML& pointerToFunc) {
+        WSEML funcRef(std::list<Pair>(), FUNCTION_TYPE);
+        funcRef.append(pointerToFunc, WSEML("pointer"));
+        funcRef.append(WSEML("stack"), WSEML("function_type"));
         return funcRef;
     }
 
     bool isFunctionReference(const WSEML& obj) {
-        return obj.hasObject() and obj.getSemanticType() == FUNCTION_TYPE and obj.getRawObject()->structureTypeInfo() == StructureType::ListType and
-               obj.getAsList()->get().size() == 2;
+        return obj.hasObject() and obj.getSemanticType() == FUNCTION_TYPE and obj.getRawObject()->structureTypeInfo() == StructureType::List and
+               obj.getList().find("path") != NULLOBJ and obj.getList().find("funcName") != NULLOBJ and obj.getList().find("function_type") != NULLOBJ;
     }
 
-    const std::string& getPath(const WSEML& funcRef) {
+    const std::string getPath(const WSEML& funcRef) {
         if (not isFunctionReference(funcRef)) {
             throw std::runtime_error("getPath: funcRef is not a valid function reference");
         }
-        return funcRef.getAsList()->front().getAsByteString()->get();
+        auto res = funcRef.getList().find("path");
+        if (res == NULLOBJ) {
+            throw std::runtime_error("getPath: funcRef is not a valid function reference");
+        }
+        return res.getInnerString();
     }
 
-    const std::string& getFuncName(const WSEML& funcRef) {
+    const std::string getFuncName(const WSEML& funcRef) {
         if (not isFunctionReference(funcRef)) {
             throw std::runtime_error("getFuncName: funcRef is not a valid function reference");
         }
-        return funcRef.getAsList()->back().getAsByteString()->get();
+        auto res = funcRef.getList().find("funcName");
+        if (res == NULLOBJ) {
+            throw std::runtime_error("getFuncName: funcRef is not a valid function reference");
+        }
+        return res.getInnerString();
     }
 
-    typedef WSEML (*WsemlFuncPtr)(const WSEML&);
+    using WsemlFuncPtr = const WSEML* (*)(const WSEML*);
 
     WSEML callFunction(const WSEML& funcRef, const WSEML& args) {
-        const std::string pathStr = getPath(funcRef);
-        const std::string funcNameStr = getFuncName(funcRef);
-
-        // Clear any existing errors
-        dlerror();
-
-        // Open the library
-        void* libHandle = dlopen(pathStr.c_str(), RTLD_LAZY);
-        if (!libHandle) {
-            fprintf(stderr, "dlopen error: %s\n", dlerror());
-            return NULLOBJ;
+        if (not isFunctionReference(funcRef)) {
+            throw std::runtime_error("callFunction: funcRef is not a valid function reference");
         }
+        if (funcRef.getList().find("function_type").getInnerString() == "direct") {
+            const std::string pathStr = getPath(funcRef);
+            const std::string funcNameStr = getFuncName(funcRef);
 
-        // Clear errors again before symbol lookup
-        dlerror();
+            dlerror();
+            void* libHandle = dlopen(pathStr.c_str(), RTLD_LAZY);
+            if (!libHandle) {
+                std::fprintf(stderr, "dlopen error: %s\n", dlerror());
+                return NULLOBJ;
+            }
+            dlerror();
 
-        // More verbose symbol lookup
-        void* symbolAddr = dlsym(libHandle, funcNameStr.c_str());
-        const char* dlsym_error = dlerror();
+            void* sym = dlsym(libHandle, funcNameStr.c_str());
+            const char* err = dlerror();
+            if (err || !sym) {
+                std::fprintf(stderr, "dlsym error for %s in %s: %s\n", funcNameStr.c_str(), pathStr.c_str(), err ? err : "symbol is NULL");
+                dlclose(libHandle);
+                return NULLOBJ;
+            }
 
-        if (dlsym_error) {
-            fprintf(stderr, "dlsym error for %s in %s: %s\n", funcNameStr.c_str(), pathStr.c_str(), dlsym_error);
+            WsemlFuncPtr funcPtr = reinterpret_cast<WsemlFuncPtr>(sym);
+            WSEML result = NULLOBJ;
+            std::cout << "Result: '" << result << "'" << std::endl;
+
+            try {
+                const WSEML* retPtr = funcPtr(&args);
+                if (retPtr) {
+                    result = *retPtr;
+                    if (retPtr != &NULLOBJ)
+                        delete retPtr;
+                }
+            } catch (const std::exception& e) {
+                std::fprintf(stderr, "Error during execution of DLL function %s: %s\n", funcNameStr.c_str(), e.what());
+            } catch (...) {
+                std::fprintf(stderr, "Unknown error during execution of DLL function %s\n", funcNameStr.c_str());
+            }
+
             dlclose(libHandle);
-            return NULLOBJ;
+            return result;
+        } else if (funcRef.getList().find("function_type") == WSEML("stack")) {
+            const WSEML& pointerToFunc = funcRef.getList().find("pointer");
+            return executeSequential(pointerToFunc, args);
         }
-
-        if (!symbolAddr) {
-            fprintf(stderr, "dlsym symbol %s is NULL in %s\n", funcNameStr.c_str(), pathStr.c_str());
-            dlclose(libHandle);
-            return NULLOBJ;
-        }
-
-        WsemlFuncPtr funcPtr = reinterpret_cast<WsemlFuncPtr>(symbolAddr);
-
-        WSEML result = NULLOBJ;
-        try {
-            // Call the function
-            result = funcPtr(args);
-        } catch (const std::exception& e) {
-            fprintf(stderr, "Error during execution of DLL function %s: %s\n", funcNameStr.c_str(), e.what());
-            result = NULLOBJ;
-        } catch (...) {
-            fprintf(stderr, "Unknown error during execution of DLL function %s\n", funcNameStr.c_str());
-            result = NULLOBJ;
-        }
-
-        dlclose(libHandle);
-        return result;
+        throw std::runtime_error("callFunction: function_type is not implemented");
     }
 
     /* Factory functions */
@@ -138,17 +153,17 @@ namespace wseml {
     }
 
     WSEML createKeyValueAssociation(WSEML key, WSEML value) {
-        WSEML keyValueAssocation(new List(std::list<Pair>(), KV_ASSOC_TYPE));
-        keyValueAssocation.getAsList()->append(&keyValueAssocation, value, key);
-        return keyValueAssocation;
+        WSEML keyValueAssociation(std::make_unique<List>(std::list<Pair>(), KV_ASSOC_TYPE));
+        keyValueAssociation.append(value, key);
+        return keyValueAssociation;
     }
 
     WSEML createBlock() {
-        return WSEML(new List(std::list<Pair>(), BLOCKTYPE));
+        return WSEML(std::make_unique<List>(std::list<Pair>(), BLOCKTYPE));
     }
 
     WSEML createAssociativeArray() {
-        return WSEML(new List(std::list<Pair>(), AATYPE));
+        return WSEML(std::make_unique<List>(std::list<Pair>(), AATYPE));
     }
 
     /* Type checks */
@@ -158,14 +173,14 @@ namespace wseml {
     }
 
     bool isKeyValueAssociation(const WSEML& obj) {
-        return obj.hasObject() and obj.structureTypeInfo() == StructureType::ListType and obj.getSemanticType() == KV_ASSOC_TYPE and
-               obj.getAsList()->get().size() == 1;
+        return obj.hasObject() and obj.structureTypeInfo() == StructureType::List and obj.getSemanticType() == KV_ASSOC_TYPE and
+               obj.getInnerList().size() == 1;
     }
     bool isBlock(const WSEML& obj) {
-        return obj.hasObject() and obj.structureTypeInfo() == StructureType::ListType and obj.getSemanticType() == BLOCKTYPE;
+        return obj.hasObject() and obj.structureTypeInfo() == StructureType::List and obj.getSemanticType() == BLOCKTYPE;
     }
     bool isAssociativeArray(const WSEML& obj) {
-        return obj.hasObject() and obj.structureTypeInfo() == StructureType::ListType and obj.getSemanticType() == AATYPE;
+        return obj.hasObject() and obj.structureTypeInfo() == StructureType::List and obj.getSemanticType() == AATYPE;
     }
 
     /* Modifications */
@@ -177,15 +192,15 @@ namespace wseml {
         if (not isBlock(block)) {
             throw std::runtime_error("appendBlock: block is not a Block");
         }
-        aa.getAsList()->append(&aa, block);
+        aa.append(block);
     }
 
     void popBlock(WSEML& aa) {
         if (not isAssociativeArray(aa)) {
             throw std::runtime_error("popBlock: aa is not an Associative Array");
         }
-        if (not aa.getAsList()->get().empty()) {
-            aa.getAsList()->pop_back();
+        if (not aa.getInnerList().empty()) {
+            aa.getList().pop_back();
         }
     }
 
@@ -195,7 +210,7 @@ namespace wseml {
         }
 
         WSEML association = createKeyValueAssociation(std::move(key), std::move(value));
-        block.getAsList()->append(&block, std::move(association));
+        block.append(std::move(association));
     }
 
     void addFunctionalAssociationToBlock(WSEML& block, const WSEML& funcAssoc) {
@@ -205,7 +220,7 @@ namespace wseml {
         if (not isFunctionalAssociation(funcAssoc)) {
             throw std::runtime_error("addFunctionalAssociationToBlock: funcAssoc is not a Functional Association");
         }
-        block.getAsList()->append(&block, funcAssoc);
+        block.append(funcAssoc);
     }
 
     void removeFunctionalAssociationFromBlock(WSEML& block, const WSEML& funcAssoc) {
@@ -215,13 +230,13 @@ namespace wseml {
         if (not isFunctionalAssociation(funcAssoc)) {
             throw std::runtime_error("removeFunctionalAssociationFromBlock: funcAssoc is not a Functional Association");
         }
-        List* blockList = block.getAsList();
-        auto it = std::find_if(blockList->begin(), blockList->end(), [&](const Pair& blockPair) {
+        List& blockList = block.getList();
+        auto it = ranges::find_if(blockList.begin(), blockList.end(), [&](const Pair& blockPair) {
             const WSEML& assoc = blockPair.getData();
             return isFunctionalAssociation(assoc) && assoc == funcAssoc;
         });
-        if (it != block.getAsList()->end()) {
-            blockList->get().erase(it);
+        if (it != block.getList().end()) {
+            blockList.get().erase(it);
         }
     }
 
@@ -229,14 +244,14 @@ namespace wseml {
         if (not isBlock(block)) {
             throw std::runtime_error("removeKeyValueAssociationFromBlock: block is not a Block");
         }
-        List* blockList = block.getAsList();
-        auto it = std::find_if(blockList->begin(), blockList->end(), [&](const Pair& blockPair) {
+        List& blockList = block.getList();
+        auto it = ranges::find_if(blockList.begin(), blockList.end(), [&](const Pair& blockPair) {
             const WSEML& assoc = blockPair.getData();
             return isKeyValueAssociation(assoc) && getKeyFromAssociation(assoc) == key;
         });
 
-        if (it != block.getAsList()->end()) {
-            blockList->get().erase(it);
+        if (it != block.getList().end()) {
+            blockList.get().erase(it);
             return true;
         }
         return false;
@@ -246,11 +261,11 @@ namespace wseml {
         if (not isAssociativeArray(aa)) {
             throw std::runtime_error("addFunctionalAssociationToAA: Provided 'aa' is not an Associative Array");
         }
-        if (aa.getAsList()->get().empty()) {
+        if (aa.getInnerList().empty()) {
             WSEML newBlock = createBlock();
-            aa.getAsList()->append(&aa, std::move(newBlock));
+            aa.append(std::move(newBlock));
         }
-        WSEML& lastBlockWSEML = aa.getAsList()->back();
+        WSEML& lastBlockWSEML = aa.getList().back();
         addFunctionalAssociationToBlock(lastBlockWSEML, funcAssoc);
     }
 
@@ -258,12 +273,12 @@ namespace wseml {
         if (not isAssociativeArray(aa)) {
             throw std::runtime_error("addKeyValueAssociationToAA: Provided 'aa' is not an Associative Array");
         }
-        if (aa.getAsList()->get().empty()) {
+        if (aa.getInnerList().empty()) {
             WSEML newBlock = createBlock();
-            aa.getAsList()->append(&aa, std::move(newBlock));
+            aa.append(std::move(newBlock));
         }
 
-        WSEML& lastBlockWSEML = aa.getAsList()->back();
+        WSEML& lastBlockWSEML = aa.getList().back();
         addKeyValueAssociationToBlock(lastBlockWSEML, std::move(key), std::move(value));
     }
 
@@ -273,35 +288,35 @@ namespace wseml {
         if (not isKeyValueAssociation(kvAssociation)) {
             throw std::runtime_error("getKeyFromAssociation: kvAssociation is not a valid key-value association");
         }
-        return kvAssociation.getAsList()->get().front().getKey();
+        return kvAssociation.getInnerList().front().getKey();
     }
 
     WSEML getValueFromAssociation(WSEML kvAssociation) {
         if (not isKeyValueAssociation(kvAssociation)) {
             throw std::runtime_error("getValueFromAssociation: kvAssociation is not a valid key-value association");
         }
-        return kvAssociation.getAsList()->front();
+        return kvAssociation.getList().front();
     }
 
     const std::list<Pair>& getBlocksFromAA(const WSEML& aa) {
         if (not isAssociativeArray(aa)) {
             throw std::runtime_error("getBlocksFromAA: Provided 'aa' is not an Associative Array");
         }
-        return aa.getAsList()->get();
+        return aa.getInnerList();
     }
 
     const std::list<Pair>& getAssociationsFromBlock(const WSEML& block) {
         if (not isBlock(block)) {
             throw std::runtime_error("getAssociationsFromBlock: block is not a Block");
         }
-        return block.getAsList()->get();
+        return block.getInnerList();
     }
 
     bool isKeyInBlock(const WSEML& block, const WSEML& key) {
         if (not isBlock(block)) {
             throw std::runtime_error("isKeyInBlock: block is not a Block");
         }
-        for (auto&& blockPair : (*(block.getAsList()))) {
+        for (auto&& blockPair : block.getInnerList()) {
             const WSEML& assoc = blockPair.getData();
             if (isKeyValueAssociation(assoc) && getKeyFromAssociation(assoc) == key) {
                 return true;
@@ -317,15 +332,15 @@ namespace wseml {
         if (not isAssociativeArray(aa)) {
             throw std::runtime_error("findValueInAA: aa is not an Associative Array");
         }
-        for (auto&& block : rv::reverse(*(aa.getAsList()))) {
-            for (auto&& association : *(block.getData().getAsList())) {
+        for (auto&& block : aa.getInnerList() | views::reverse) {
+            for (auto&& association : (block.getData().getList())) {
                 if (isKeyValueAssociation(association.getData()) and getKeyFromAssociation(association.getData()) == key) {
                     return getValueFromAssociation(association.getData());
                 }
             }
         }
-        for (auto&& block : rv::reverse(*(aa.getAsList()))) {
-            for (auto&& association : *(block.getData().getAsList())) {
+        for (auto&& block : aa.getInnerList() | views::reverse) {
+            for (auto&& association : (block.getData().getList())) {
                 if (isFunctionalAssociation(association.getData()) and getFuncAssocTriggerType(association.getData()) == key.getSemanticType()) {
                     return callFunction(getFuncAssocFunction(association.getData()), key);
                 }
@@ -343,8 +358,8 @@ namespace wseml {
 
         std::unordered_set<size_t> seenKeysHashes;
 
-        for (auto&& block : rv::reverse(*(aa.getAsList()))) {
-            for (auto&& association : *(block.getData().getAsList())) {
+        for (auto&& block : aa.getInnerList() | views::reverse) {
+            for (auto&& association : (block.getData().getList())) {
                 auto assoc = association.getData();
                 if (isKeyValueAssociation(assoc)) {
                     WSEML key = getKeyFromAssociation(assoc);
@@ -364,15 +379,54 @@ namespace wseml {
     }
 
     bool compareAssociativeArrays(const WSEML& aa1, const WSEML& aa2) {
-        /* it works, I promise) */
-        return std::hash<WSEML>{}(aa1) == std::hash<WSEML>{}(aa2);
+        auto merged1 = merge(aa1);
+        auto merged2 = merge(aa2);
+        if (merged1.getInnerList().empty() != merged2.getInnerList().empty()) {
+            return false;
+        }
+        if (merged1.getInnerList().empty() and merged2.getInnerList().empty()) {
+            return true;
+        }
+        return (merged1.getList().front() == merged2.getList().front());
     }
 
     bool compareBlocks(const WSEML& block1, const WSEML& block2) {
-        if (block1.getAsList()->get().size() != block2.getAsList()->get().size())
+        const auto& innerList1 = block1.getInnerList();
+        const auto& innerList2 = block2.getInnerList();
+
+        if (innerList1.size() != innerList2.size()) {
             return false;
-        /* (Ծ‸ Ծ) */
-        return std::hash<WSEML>{}(block1) == std::hash<WSEML>{}(block2);
+        }
+
+        // Create data views for both blocks
+        auto dataView1 = innerList1 | std::ranges::views::transform([](const auto& pair) { return pair.getData(); });
+        auto dataView2 = innerList2 | std::ranges::views::transform([](const auto& pair) { return pair.getData(); });
+
+        // Use counting approach with running non-zero counter
+        std::unordered_map<decltype(dataView1.front()), int> counter;
+        int nonZeroEntries = 0;
+
+        // Count elements in the first block
+        for (const auto& data : dataView1) {
+            if (++counter[data] == 1) {
+                nonZeroEntries++;
+            }
+        }
+
+        // Decrement counts for elements in the second block
+        for (const auto& data : dataView2) {
+            auto it = counter.find(data);
+            if (it == counter.end() || it->second == 0) {
+                return false;
+            }
+
+            if (--it->second == 0) {
+                nonZeroEntries--;
+            }
+        }
+
+        // If all elements match, nonZeroEntries should be 0
+        return nonZeroEntries == 0;
     }
 
     /* Forward declaration for unification */
@@ -433,17 +487,20 @@ namespace wseml {
 
         WSEML type = value1.getSemanticType();
 
-        if (value1.getRawObject()->structureTypeInfo() == StructureType::ListType and
-            value2.getRawObject()->structureTypeInfo() == StructureType::ListType) {
-            const std::list<Pair>& list1 = value1.getAsList()->get();
-            const std::list<Pair>& list2 = value2.getAsList()->get();
+        if (value1.getRawObject()->structureTypeInfo() == StructureType::List and value2.getRawObject()->structureTypeInfo() == StructureType::List) {
+            const std::list<Pair>& list1 = value1.getInnerList();
+            const std::list<Pair>& list2 = value2.getInnerList();
             if (list1.size() != list2.size()) {
                 return NULLOBJ;
             }
             std::list<Pair> unifiedPairs;
 
-            for (auto&& [pair1, pair2] : rv::zip(list1, list2)) {
-                auto unifiedPair = unifyPairs(pair1, pair2, placeholderValues);
+            auto it1 = list1.begin();
+            auto it2 = list2.begin();
+            while (it1 != list1.end() and it2 != list2.end()) {
+                auto unifiedPair = unifyPairs(*it1, *it2, placeholderValues);
+                it1++;
+                it2++;
                 if (!unifiedPair.has_value()) {
                     return NULLOBJ;
                 }
@@ -509,7 +566,7 @@ namespace wseml {
         std::unordered_map<WSEML, WSEML> funcAssoc2;
         std::unordered_set<WSEML> keysUnion;
 
-        for (auto&& assoc : *(block1.getAsList())) {
+        for (auto&& assoc : block1.getList()) {
             WSEML assocObject = assoc.getData();
             if (isKeyValueAssociation(assocObject)) {
                 WSEML key = getKeyFromAssociation(assocObject);
@@ -524,7 +581,7 @@ namespace wseml {
             }
         }
 
-        for (auto&& assoc : *(block2.getAsList())) {
+        for (auto&& assoc : block2.getList()) {
             WSEML assocObject = assoc.getData();
             if (isKeyValueAssociation(assocObject)) {
                 WSEML assocObject = assoc.getData();
@@ -630,8 +687,8 @@ namespace wseml {
     WSEML unifyAAHelper(const WSEML& aa1, const WSEML& aa2, std::unordered_map<WSEML, WSEML>& placeholderValues) {
         WSEML merged1 = merge(aa1);
         WSEML merged2 = merge(aa2);
-        WSEML block1 = merged1.getAsList()->front();
-        WSEML block2 = merged2.getAsList()->front();
+        WSEML block1 = merged1.getList().front();
+        WSEML block2 = merged2.getList().front();
 
         WSEML unifiedBlock = unifyBlocks(block1, block2, placeholderValues);
 
@@ -666,7 +723,7 @@ namespace wseml {
 
     std::unordered_map<WSEML, WSEML> parseBindings(const WSEML& bindingsAA) {
         if (!isAssociativeArray(bindingsAA)) {
-            if (bindingsAA == NULLOBJ || (bindingsAA.getAsList() && bindingsAA.getAsList()->get().empty())) {
+            if (bindingsAA == NULLOBJ || (bindingsAA.structureTypeInfo() == StructureType::List && bindingsAA.getInnerList().empty())) {
                 return {};
             }
             throw std::runtime_error("substitutePlaceholders: bindingsAA must be an Associative Array or NULLOBJ");
@@ -716,19 +773,19 @@ namespace wseml {
         StructureType structureType = currentTemplateObj.structureTypeInfo();
         WSEML currentType = currentTemplateObj.getSemanticType(); // Preserve semantic type
 
-        if (structureType == StructureType::StringType) {
+        if (structureType == StructureType::String) {
             return WSEML(currentTemplateObj);
         }
 
-        if (structureType == StructureType::ListType) {
-            const List* originalList = currentTemplateObj.getAsList();
-            if (!originalList) {
+        if (structureType == StructureType::List) {
+            const std::list<Pair>& originalList = currentTemplateObj.getInnerList();
+            if (originalList.empty()) {
                 return WSEML(currentTemplateObj);
             }
 
             std::list<Pair> substitutedPairs;
 
-            for (const Pair& originalPair : originalList->get()) {
+            for (const Pair& originalPair : originalList) {
                 WSEML substitutedKey = substitutePlaceholdersRecursive(bindingsMap, originalPair.getKey());
                 WSEML substitutedData = substitutePlaceholdersRecursive(bindingsMap, originalPair.getData());
                 WSEML substitutedKeyRole = substitutePlaceholdersRecursive(bindingsMap, originalPair.getKeyRole());

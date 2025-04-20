@@ -1,237 +1,223 @@
-cmake_minimum_required(VERSION 3.20)
-project(AssociativeArray LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.25)
+
+project(AssociativeArray
+        VERSION 1.0
+        LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
-set(BOOST_INCLUDE_LIBRARIES container_hash)
-set(BOOST_ENABLE_CMAKE ON)
-set(FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/deps")
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING
-        "Choose the type of build (Debug/Release/RelWithDebInfo/MinSizeRel)" FORCE)
+  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the build type" FORCE)
 endif()
-
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-option(ENABLE_ASAN "Enable Address Sanitizer" ON)
-option(ENABLE_UBSAN "Enable Undefined Behavior Sanitizer" ON)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
-set(SANITIZER_COMPILE_FLAGS "")
-set(SANITIZER_LINK_FLAGS "")
+option(AA_ENABLE_WARNINGS "Enable extra warning flags" ON)
+option(AA_ENABLE_ASAN "Enable Address Sanitizer" OFF)
+option(AA_ENABLE_UBSAN "Enable Undefined-Behavior Sanitizer" OFF)
+option(AA_ENABLE_TSAN "Enable Thread Sanitizer" OFF)
+option(AA_ENABLE_LSAN "Enable Leak Sanitizer" OFF)
+option(AA_ENABLE_MSAN "Enable Memory Sanitizer" OFF)
 
-# if(ENABLE_ASAN)
-# list(APPEND SANITIZER_COMPILE_FLAGS "-fsanitize=address" "-fno-omit-frame-pointer")
-# list(APPEND SANITIZER_LINK_FLAGS "-fsanitize=address")
-# endif()
+include(CheckCXXCompilerFlag)
+include(GNUInstallDirs)
 
-# if(ENABLE_UBSAN)
-# list(APPEND SANITIZER_COMPILE_FLAGS "-fsanitize=undefined")
-# list(APPEND SANITIZER_LINK_FLAGS "-fsanitize=undefined")
-# endif()
-add_compile_options(
-    -Wall
-    -Wextra
-    -Wpedantic
-    -Werror
+function(aa_enable_warnings tgt)
+  if(AA_ENABLE_WARNINGS)
+    if(MSVC)
+      target_compile_options(${tgt} PRIVATE /W4 /WX)
+    else()
+      target_compile_options(${tgt} PRIVATE
+        -Wall -Wextra -Wpedantic -Werror -Wno-return-type-c-linkage)
+    endif()
+  endif()
+endfunction()
 
-    $<$<BOOL:${ENABLE_ASAN}>:${SANITIZER_COMPILE_FLAGS}>
-    $<$<BOOL:${ENABLE_UBSAN}>:${SANITIZER_COMPILE_FLAGS}>
-)
+function(aa_enable_sanitizers tgt)
+  if(NOT (AA_ENABLE_ASAN OR AA_ENABLE_UBSAN OR AA_ENABLE_TSAN OR AA_ENABLE_LSAN OR AA_ENABLE_MSAN))
+    return()
+  endif()
 
-# core
+  set(_compile_flags "")
+  set(_link_flags    "")
+
+  if(AA_ENABLE_ASAN)
+    check_cxx_compiler_flag("-fsanitize=address" HAS_ASAN)
+    if(HAS_ASAN)
+      list(APPEND _compile_flags "-fsanitize=address" "-fno-omit-frame-pointer")
+      list(APPEND _link_flags    "-fsanitize=address")
+    else()
+      message(WARNING "AddressSanitizer requested but not supported.")
+    endif()
+  endif()
+
+  if(AA_ENABLE_UBSAN)
+    check_cxx_compiler_flag("-fsanitize=undefined" HAS_UBSAN)
+    if(HAS_UBSAN)
+      list(APPEND _compile_flags "-fsanitize=undefined")
+      list(APPEND _link_flags    "-fsanitize=undefined")
+    else()
+      message(WARNING "UBSan requested but not supported.")
+    endif()
+  endif()
+
+  if(AA_ENABLE_TSAN)
+    check_cxx_compiler_flag("-fsanitize=thread" HAS_TSAN)
+    if(HAS_TSAN)
+      list(APPEND _compile_flags "-fsanitize=thread")
+      list(APPEND _link_flags    "-fsanitize=thread")
+    else()
+      message(WARNING "ThreadSanitizer requested but not supported.")
+    endif()
+  endif()
+
+  if(AA_ENABLE_LSAN)
+    check_cxx_compiler_flag("-fsanitize=leak" HAS_LSAN)
+    if(HAS_LSAN)
+      list(APPEND _compile_flags "-fsanitize=leak")
+      list(APPEND _link_flags    "-fsanitize=leak")
+    else()
+      message(WARNING "LeakSanitizer requested but not supported.")
+    endif()
+  endif()
+
+  if(AA_ENABLE_MSAN)
+    check_cxx_compiler_flag("-fsanitize=memory" HAS_MSAN)
+    if(HAS_MSAN)
+      list(APPEND _compile_flags "-fsanitize=memory")
+      list(APPEND _link_flags    "-fsanitize=memory")
+    else()
+      message(WARNING "MemorySanitizer requested but not supported.")
+    endif()
+  endif()
+
+  if(_compile_flags)
+    target_compile_options(${tgt} PRIVATE ${_compile_flags})
+    target_link_options(${tgt}    PRIVATE ${_link_flags})
+  endif()
+endfunction()
+
+function(aa_add_plugin src)
+  get_filename_component(_name ${src} NAME_WE)
+  add_library(${_name} SHARED ${src})
+  target_include_directories(${_name} PRIVATE ${PROJECT_SOURCE_DIR}/include)
+  aa_enable_warnings(${_name})
+  aa_enable_sanitizers(${_name})
+  set_target_properties(${_name} PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/external_funcs_lib"
+    RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/external_funcs_lib")
+endfunction()
+
+include(FetchContent)
+set(FETCHCONTENT_BASE_DIR ${CMAKE_BINARY_DIR}/_deps)
+
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG        v1.15.0
+  GIT_SHALLOW    ON)
+FetchContent_MakeAvailable(googletest)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GMP REQUIRED IMPORTED_TARGET gmp)
+
 set(LIB_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/associativeArray.cpp
-    ${CMAKE_SOURCE_DIR}/src/helpFunc.cpp
-    ${CMAKE_SOURCE_DIR}/src/misc.cpp
-    ${CMAKE_SOURCE_DIR}/src/parser.cpp
-    ${CMAKE_SOURCE_DIR}/src/pointers.cpp
-    ${CMAKE_SOURCE_DIR}/src/WSEML.cpp
-)
+    src/associativeArray.cpp
+    src/helpFunc.cpp
+    src/misc.cpp
+    src/parser.cpp
+    src/pointers.cpp
+    src/WSEML.cpp)
 
-# boost
-set(BOOST_REQUIRED_SUBMODULES
-    "tools/cmake;"
-    "libs/config;libs/describe;"
-    "libs/mp11;"
-    "libs/container_hash;"
-)
-
-# os specific
 if(WIN32)
-    list(APPEND LIB_SOURCES ${CMAKE_SOURCE_DIR}/src/arch/win32/funcCall.cpp)
+  list(APPEND LIB_SOURCES src/arch/win32/funcCall.cpp)
 elseif(UNIX)
-    list(APPEND LIB_SOURCES ${CMAKE_SOURCE_DIR}/src/arch/unix/funcCall.cpp)
+  list(APPEND LIB_SOURCES src/arch/unix/funcCall.cpp)
 else()
-    message(FATAL_ERROR "Unsupported OS!")
+  message(FATAL_ERROR "Unsupported operating system")
 endif()
 
-add_library(aarray STATIC ${LIB_SOURCES})
-target_include_directories(aarray PUBLIC ${CMAKE_SOURCE_DIR}/include)
+add_library(AssociativeArray STATIC ${LIB_SOURCES})
 
-# Download dependencies
-include(FetchContent)
+target_include_directories(AssociativeArray PUBLIC
+    ${PROJECT_SOURCE_DIR}/include
+    ${GMP_INCLUDE_DIRS})
 
-FetchContent_Declare(
-    Boost
-    GIT_REPOSITORY https://github.com/boostorg/boost.git
-    GIT_TAG boost-1.87.0
-    GIT_PROGRESS ON
-    GIT_SHALLOW ON
-    GIT_SUBMODULES ${BOOST_REQUIRED_SUBMODULES}
-)
-
-FetchContent_Declare(
-    range-v3
-    GIT_REPOSITORY https://github.com/ericniebler/range-v3.git
-    GIT_COMMIT a81477931a8aa2ad025c6bda0609f38e09e4d7ec
-    GIT_SHALLOW ON
-)
-
-FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG v1.15.0
-    GIT_SHALLOW ON
-)
-
-FetchContent_MakeAvailable(googletest Boost range-v3)
-
-# link deps to core
-target_link_libraries(aarray PRIVATE Boost::container_hash range-v3::range-v3)
-
-# external functions
-
-# source files for external functions
-set(EXTERNAL_FUNCS_SRC_DIR ${CMAKE_SOURCE_DIR}/external_funcs)
-
-# destination for compiled external functions
-set(EXTERNAL_FUNCS_LIB_DIR ${CMAKE_BINARY_DIR}/external_funcs_lib)
-file(MAKE_DIRECTORY ${EXTERNAL_FUNCS_LIB_DIR})
-
-file(GLOB EXTERNAL_FUNCS_SOURCES "${EXTERNAL_FUNCS_SRC_DIR}/*.cpp")
-
-# create shared libraries for each external function
-foreach(FUNC_SRC_FILE ${EXTERNAL_FUNCS_SOURCES})
-    get_filename_component(FUNC_LIB_NAME ${FUNC_SRC_FILE} NAME_WE)
-
-    add_library(${FUNC_LIB_NAME} SHARED ${FUNC_SRC_FILE})
-    target_include_directories(${FUNC_LIB_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
-
-    set_target_properties(${FUNC_LIB_NAME} PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY "${EXTERNAL_FUNCS_LIB_DIR}"
-        RUNTIME_OUTPUT_DIRECTORY "${EXTERNAL_FUNCS_LIB_DIR}"
-    )
-
-    target_compile_options(${FUNC_LIB_NAME} PRIVATE
-        $<$<BOOL:${ENABLE_ASAN}>:${SANITIZER_COMPILE_FLAGS}>
-        $<$<BOOL:${ENABLE_UBSAN}>:${SANITIZER_COMPILE_FLAGS}>
-    )
-    target_link_options(${FUNC_LIB_NAME} PRIVATE
-        $<$<BOOL:${ENABLE_ASAN}>:${SANITIZER_LINK_FLAGS}>
-        $<$<BOOL:${ENABLE_UBSAN}>:${SANITIZER_LINK_FLAGS}>
-    )
-
-    message(STATUS "Configuring external function library: ${FUNC_LIB_NAME}")
-endforeach()
+target_link_libraries(AssociativeArray PUBLIC
+    PkgConfig::GMP
+    gmpxx)
 
 if(UNIX)
-  target_link_options(aarray PUBLIC "-rdynamic")
+  target_link_options(AssociativeArray PUBLIC -rdynamic)
 endif()
 
+aa_enable_warnings(AssociativeArray)
+aa_enable_sanitizers(AssociativeArray)
 
-# main executable
-add_executable(main_exe ${CMAKE_SOURCE_DIR}/main.cpp)
-target_link_libraries(main_exe PRIVATE aarray)
-target_include_directories(main_exe PRIVATE ${CMAKE_SOURCE_DIR}/include)
+file(GLOB _plugin_sources CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/external_funcs/*.cpp)
+foreach(_src IN LISTS _plugin_sources)
+  aa_add_plugin(${_src})
+endforeach()
 
-target_link_options(main_exe PRIVATE
-    $<$<BOOL:${ENABLE_ASAN}>:${SANITIZER_LINK_FLAGS}>
-    $<$<BOOL:${ENABLE_UBSAN}>:${SANITIZER_LINK_FLAGS}>
-)
+add_executable(aarray_main main.cpp)
+target_link_libraries(aarray_main PRIVATE AssociativeArray)
+target_include_directories(aarray_main PRIVATE ${PROJECT_SOURCE_DIR}/include)
+aa_enable_warnings(aarray_main)
+aa_enable_sanitizers(aarray_main)
 
 if(UNIX AND NOT APPLE)
-    set_target_properties(main_exe PROPERTIES
-        BUILD_RPATH "${EXTERNAL_FUNCS_LIB_DIR}"
-        INSTALL_RPATH "\$ORIGIN/../external_funcs_lib"
-        BUILD_WITH_INSTALL_RPATH FALSE
-        SKIP_BUILD_RPATH FALSE
-        INSTALL_RPATH_USE_LINK_PATH TRUE)
+  set_target_properties(aarray_main PROPERTIES
+      BUILD_RPATH "$ORIGIN/../external_funcs_lib"
+      INSTALL_RPATH "$ORIGIN/../external_funcs_lib")
 elseif(APPLE)
-    set_target_properties(main_exe PROPERTIES
-        BUILD_RPATH "${EXTERNAL_FUNCS_LIB_DIR}"
-        INSTALL_RPATH "@loader_path/../external_funcs_lib")
+  set_target_properties(aarray_main PROPERTIES
+      BUILD_RPATH "@loader_path/../external_funcs_lib"
+      INSTALL_RPATH "@loader_path/../external_funcs_lib")
 elseif(WIN32)
-    foreach(FUNC_SRC_FILE ${EXTERNAL_FUNCS_SOURCES})
-        get_filename_component(FUNC_LIB_NAME ${FUNC_SRC_FILE} NAME_WE)
-        add_custom_command(TARGET main_exe POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:${FUNC_LIB_NAME}>
-            $<TARGET_FILE_DIR:main_exe>
-            COMMENT "Copying ${FUNC_LIB_NAME}.dll for main_exe"
-        )
-    endforeach()
+  add_custom_command(TARGET aarray_main POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+      "${PROJECT_BINARY_DIR}/external_funcs_lib"
+      $<TARGET_FILE_DIR:aarray_main>)
 endif()
 
-# testing
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 enable_testing()
-file(GLOB TEST_SOURCES "${CMAKE_SOURCE_DIR}/tests/*.cpp")
+file(GLOB _test_sources CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/tests/*.cpp)
 
-if(TEST_SOURCES)
-    add_executable(tests ${TEST_SOURCES})
-    target_link_libraries(tests PRIVATE aarray gtest gtest_main)
-    target_include_directories(tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+if(_test_sources)
+  add_executable(aarray_tests ${_test_sources})
+  target_link_libraries(aarray_tests PRIVATE AssociativeArray GTest::gtest GTest::gtest_main)
+  aa_enable_warnings(aarray_tests)
+  aa_enable_sanitizers(aarray_tests)
 
-    target_link_options(tests PRIVATE
-        $<$<BOOL:${ENABLE_ASAN}>:${SANITIZER_LINK_FLAGS}>
-        $<$<BOOL:${ENABLE_UBSAN}>:${SANITIZER_LINK_FLAGS}>
-    )
+  if(UNIX AND NOT APPLE)
+    set_target_properties(aarray_tests PROPERTIES
+        BUILD_RPATH "$ORIGIN/../external_funcs_lib"
+        INSTALL_RPATH "$ORIGIN/../external_funcs_lib")
+  elseif(APPLE)
+    set_target_properties(aarray_tests PROPERTIES
+        BUILD_RPATH "@loader_path/../external_funcs_lib"
+        INSTALL_RPATH "@loader_path/../external_funcs_lib")
+  elseif(WIN32)
+    add_custom_command(TARGET aarray_tests POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${PROJECT_BINARY_DIR}/external_funcs_lib"
+        $<TARGET_FILE_DIR:aarray_tests>)
+  endif()
 
-    # ensure that they are findable
-    if(UNIX AND NOT APPLE)
-        set_target_properties(tests PROPERTIES
-            BUILD_RPATH "${EXTERNAL_FUNCS_LIB_DIR}"
-            INSTALL_RPATH "\$ORIGIN/../external_funcs_lib"
-            BUILD_WITH_INSTALL_RPATH FALSE
-            SKIP_BUILD_RPATH FALSE
-            INSTALL_RPATH_USE_LINK_PATH TRUE)
-    elseif(APPLE)
-        set_target_properties(tests PROPERTIES
-            BUILD_RPATH "${EXTERNAL_FUNCS_LIB_DIR}"
-            INSTALL_RPATH "@loader_path/../external_funcs_lib")
-    elseif(WIN32)
-        foreach(FUNC_SRC_FILE ${EXTERNAL_FUNCS_SOURCES})
-            get_filename_component(FUNC_LIB_NAME ${FUNC_SRC_FILE} NAME_WE)
-            add_custom_command(TARGET tests POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_FILE:${FUNC_LIB_NAME}>
-                $<TARGET_FILE_DIR:tests>
-                COMMENT "Copying ${FUNC_LIB_NAME}.dll for tests"
-            )
-        endforeach()
-    endif()
-
-    include(GoogleTest)
-    gtest_discover_tests(tests)
+  include(GoogleTest)
+  gtest_discover_tests(aarray_tests)
 endif()
 
-# helper
-function(add_single_file_executable exe_file)
-    get_filename_component(exe_name ${exe_file} NAME_WE)
-    add_executable(${exe_name} ${exe_file})
-    target_link_libraries(${exe_name} PRIVATE aarray)
-    target_include_directories(${exe_name} PRIVATE ${CMAKE_SOURCE_DIR}/include)
-
-    target_link_options(${exe_name} PRIVATE
-        $<$<BOOL:${ENABLE_ASAN}>:${SANITIZER_LINK_FLAGS}>
-        $<$<BOOL:${ENABLE_UBSAN}>:${SANITIZER_LINK_FLAGS}>
-    )
+function(aa_add_tool source)
+  get_filename_component(_name ${source} NAME_WE)
+  add_executable(${_name} ${source})
+  target_link_libraries(${_name} PRIVATE AssociativeArray)
+  aa_enable_warnings(${_name})
+  aa_enable_sanitizers(${_name})
 endfunction()
+
